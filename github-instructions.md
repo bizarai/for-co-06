@@ -63,7 +63,7 @@ wrangler pages publish . --project-name map-visualizer
    - Go to the Cloudflare dashboard
    - Navigate to Pages > map-visualizer > Settings > Environment variables
    - Add:
-     - MAPBOX_TOKEN: your_mapbox_token
+     - MAPBOX_TOKEN: pk.eyJ1IjoidHVmZmNyZWF0ZSIsImEiOiJjbHU5YXJxeXQwN2J6MmpsMDRvMGJ0dGhsIn0.neijgnnqzQ0aCHzOPrE_MQ
      - GEMINI_API_KEY: your_gemini_api_key (if using)
 
 6. After deployment, Cloudflare will provide a URL for your application
