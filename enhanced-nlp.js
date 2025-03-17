@@ -416,12 +416,17 @@ export function displayLocationChips(locations, message, container) {
 }
 
 /**
- * Show locations as markers on the map without creating a route
- * @param {Array} locations - Array of location objects with name and timeContext
+ * Show extracted locations on the map
+ * @param {Array} locations - Array of location objects with name and optional timeContext
  * @param {Object} map - Mapbox map instance
- * @param {string} mapboxToken - Mapbox API token
+ * @param {string} mapboxToken - Mapbox token for API access
  */
 export function showLocationsOnMap(locations, map, mapboxToken) {
+  if (!locations || locations.length === 0 || !map) {
+    console.error('Invalid locations or map');
+    return;
+  }
+  
   console.log('Showing locations on map:', locations);
   
   // Clear existing route
@@ -436,93 +441,130 @@ export function showLocationsOnMap(locations, map, mapboxToken) {
     });
   }
   
-  // Create a backup list in case some locations fail to geocode
-  let failedLocations = [];
+  // Array to collect coordinates for all locations
+  const geocodedFeatures = [];
+  // Track failed locations for alternative geocoding attempt
+  const failedLocations = [];
   
-  // Geocode each location
-  const geocodePromises = locations.map(location =>
-    fetch(`/api/mapbox-geocoding`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ location: location.name })
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`Geocoding error for ${location.name}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      if (data.coordinates) {
-        // Create description that includes time context if available
-        const timeInfo = location.timeContext ? `<p><em>Time period: ${location.timeContext}</em></p>` : '';
-        const description = `<h3>${location.name}</h3>${timeInfo}<p>${data.placeName}</p>`;
+  // Process each location - either geocode or use coords directly
+  const geocodePromises = locations.map(async location => {
+    try {
+      // If coordinates are already provided (like in Gibbon example)
+      if (location.coordinates) {
+        console.log(`Using provided coordinates for ${location.name}:`, location.coordinates);
         
-        return {
+        // Create GeoJSON feature with the provided coordinates
+        const feature = {
           type: 'Feature',
           geometry: {
             type: 'Point',
-            coordinates: data.coordinates
+            coordinates: location.coordinates
           },
           properties: {
-            description: description,
             title: location.name,
+            description: createLocationPopupHTML(location),
             timeContext: location.timeContext || ''
           }
         };
-      }
-      console.log(`No results found for ${location.name}`);
-      failedLocations.push(location.name);
-      return null;
-    })
-    .catch(err => {
-      console.error(`Error geocoding ${location.name}:`, err);
-      failedLocations.push(location.name);
-      return null;
-    })
-  );
-  
-  // Update markers on the map
-  Promise.all(geocodePromises)
-    .then(features => {
-      const validFeatures = features.filter(f => f !== null);
-      
-      console.log('Valid geocoded features:', validFeatures);
-      
-      // Show a message if some locations couldn't be geocoded
-      if (failedLocations.length > 0) {
-        console.warn('Could not geocode these locations:', failedLocations);
         
-        // Try with alternative geocoding for historical locations
-        tryAlternativeGeocoding(failedLocations, map);
+        geocodedFeatures.push(feature);
+        return;
       }
       
-      // Update the locations source if it exists
-      const locationsSource = map.getSource('locations');
-      if (locationsSource) {
-        locationsSource.setData({
-          type: 'FeatureCollection',
-          features: validFeatures
-        });
-        
-        // If we have valid locations, fit the map to show them all
-        if (validFeatures.length > 0) {
-          const bounds = new mapboxgl.LngLatBounds();
-          
-          validFeatures.forEach(feature => {
-            bounds.extend(feature.geometry.coordinates);
-          });
-          
-          map.fitBounds(bounds, {
-            padding: 50
-          });
+      // Define API_URL based on environment
+      const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
+      
+      // Use server API to geocode the location
+      const response = await fetch(`${API_URL}/api/mapbox-geocoding`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ location: location.name })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const coordinates = data.coordinates;
+      console.log(`Geocoded ${location.name} to:`, coordinates);
+      
+      // Create GeoJSON feature
+      const feature = {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: coordinates
+        },
+        properties: {
+          title: location.name,
+          description: createLocationPopupHTML(location),
+          timeContext: location.timeContext || ''
         }
-      } else {
-        console.error('Locations source not found in map');
+      };
+      
+      geocodedFeatures.push(feature);
+    } catch (error) {
+      console.error(`Error geocoding location "${location.name}":`, error);
+      failedLocations.push(location.name);
+    }
+  });
+  
+  // Wait for all geocoding promises to complete
+  Promise.all(geocodePromises).then(() => {
+    // Try alternative geocoding for failed locations
+    if (failedLocations.length > 0) {
+      console.log(`Trying alternative geocoding for ${failedLocations.length} failed locations:`, failedLocations);
+      const alternativeFeatures = tryAlternativeGeocoding(failedLocations, map);
+      if (alternativeFeatures && alternativeFeatures.length > 0) {
+        geocodedFeatures.push(...alternativeFeatures);
       }
-    });
+    }
+    
+    // Update the locations source with all features
+    const locationsSource = map.getSource('locations');
+    if (locationsSource && geocodedFeatures.length > 0) {
+      locationsSource.setData({
+        type: 'FeatureCollection',
+        features: geocodedFeatures
+      });
+      
+      // Fit the map to show all features
+      fitMapToFeatures(map, geocodedFeatures);
+    } else {
+      console.error('Locations source not found or no valid features geocoded');
+    }
+  });
+}
+
+/**
+ * Create HTML content for location popup
+ * @param {Object} location - Location object
+ * @returns {string} - HTML content
+ */
+function createLocationPopupHTML(location) {
+  const timeInfo = location.timeContext ? `<p><em>Time period: ${location.timeContext}</em></p>` : '';
+  return `<h3>${location.name}</h3>${timeInfo}`;
+}
+
+/**
+ * Fit map view to show all features
+ * @param {Object} map - Mapbox map instance
+ * @param {Array} features - Array of GeoJSON features
+ */
+function fitMapToFeatures(map, features) {
+  if (!features || features.length === 0) return;
+  
+  const bounds = new mapboxgl.LngLatBounds();
+  features.forEach(feature => {
+    bounds.extend(feature.geometry.coordinates);
+  });
+  
+  map.fitBounds(bounds, {
+    padding: 50
+  });
 }
 
 /**

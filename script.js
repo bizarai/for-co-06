@@ -11,7 +11,6 @@ import {
 } from './enhanced-nlp.js';
 
 // We need to set a valid Mapbox token for the map to load properly
-// Let's fetch it from the local server
 let map;
 let mapboxToken;
 
