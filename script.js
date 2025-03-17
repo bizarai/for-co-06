@@ -1,5 +1,5 @@
-// Define the API URL based on the environment - using local server
-const API_URL = '';
+// Define the API URL based on the environment - using local server for development, or current location for production
+const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
 
 // Import NLP modules
 import { extractLocationsWithRegex } from './nlp.js';
