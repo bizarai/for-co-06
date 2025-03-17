@@ -1,0 +1,21 @@
+{
+  "name": "map-location-visualizer",
+  "version": "1.0.0",
+  "description": "An application that visualizes locations and routes on a map from natural language input",
+  "main": "server.js",
+  "scripts": {
+    "build": "echo 'No build step required'",
+    "deploy": "wrangler pages publish --project-name map-visualizer ."
+  },
+  "build": {
+    "command": "npm run build",
+    "output_directory": ".",
+    "root_directory": "."
+  },
+  "routes": [
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
+  "env": {
+    "NODE_VERSION": "16"
+  }
+} 

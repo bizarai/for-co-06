@@ -1,0 +1,12 @@
+name = "map-visualizer-api"
+main = "server.js"
+compatibility_date = "2023-10-02"
+node_compat = true
+
+[vars]
+# Environment variables will be set in the Cloudflare dashboard
+# or using wrangler secrets
+
+[site]
+bucket = "."
+entry-point = "." 
