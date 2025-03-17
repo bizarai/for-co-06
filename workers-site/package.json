@@ -1,0 +1,12 @@
+{
+  "name": "map-visualizer-workers",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers implementation for map-visualizer API",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "wrangler publish"
+  },
+  "dependencies": {
+    "itty-router": "^2.6.1"
+  }
+} 
