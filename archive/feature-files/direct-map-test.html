@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Mapbox Test</title>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            width: 100%;
+            height: 500px;
+            border: 2px solid #ccc;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            font-family: monospace;
+            white-space: pre-wrap;
+            height: 200px;
+            overflow: auto;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px;
+            margin-right: 10px;
+            background-color: #0078ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Direct Mapbox Test</h1>
+    <p>This page tests Mapbox map initialization without any dependencies.</p>
+
+    <div class="controls">
+        <button id="init-map">Initialize Map (Fetching Token)</button>
+        <button id="init-map-direct">Initialize Map (Direct Token)</button>
+    </div>
+
+    <div id="map">Map loading...</div>
+    
+    <div id="log">Test log:
+    </div>
+
+    <script>
+        // Log function
+        function log(message) {
+            console.log(message);
+            const logElement = document.getElementById('log');
+            logElement.textContent += '\n' + message;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        log('Page loaded at ' + new Date().toISOString());
+        log('Mapbox GL JS loaded: ' + (typeof mapboxgl !== 'undefined'));
+        if (typeof mapboxgl !== 'undefined') {
+            log('Mapbox GL JS version: ' + mapboxgl.version);
+        }
+
+        // Initialize map with token from API
+        document.getElementById('init-map').addEventListener('click', async () => {
+            try {
+                log('Fetching Mapbox token from API...');
+                const response = await fetch('/api/mapbox-token');
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to get token: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                const token = data.token;
+                
+                if (!token) {
+                    throw new Error('No token received from server');
+                }
+                
+                log(`Token received: ${token.substring(0, 8)}...`);
+                initializeMap(token);
+            } catch (error) {
+                log(`ERROR: ${error.message}`);
+            }
+        });
+
+        // Initialize map with direct token
+        document.getElementById('init-map-direct').addEventListener('click', () => {
+            // Use the token from your .env file
+            const token = 'pk.eyJ1IjoidHVmZmNyZWF0ZSIsImEiOiJjbHU5YXJxeXQwN2J6MmpsMDRvMGJ0dGhsIn0.neijgnnqzQ0aCHzOPrE_MQ';
+            log(`Using direct token: ${token.substring(0, 8)}...`);
+            initializeMap(token);
+        });
+
+        // Initialize map function
+        function initializeMap(token) {
+            try {
+                log('Setting Mapbox access token...');
+                mapboxgl.accessToken = token;
+                
+                log('Creating map instance...');
+                const map = new mapboxgl.Map({
+                    container: 'map',
+                    style: 'mapbox://styles/mapbox/streets-v11',
+                    center: [-98.5795, 39.8283], // Center of the US
+                    zoom: 3
+                });
+                
+                // Add navigation controls
+                map.addControl(new mapboxgl.NavigationControl());
+                
+                // Handle load event
+                map.on('load', () => {
+                    log('Map loaded successfully!');
+                    
+                    // Add a marker to confirm the map is working
+                    new mapboxgl.Marker()
+                        .setLngLat([-98.5795, 39.8283])
+                        .addTo(map);
+                });
+                
+                // Handle error event
+                map.on('error', (e) => {
+                    log(`Map error: ${e.error ? e.error.message : 'Unknown error'}`);
+                });
+            } catch (error) {
+                log(`ERROR initializing map: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html> 

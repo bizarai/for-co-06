@@ -1,6 +1,6 @@
 # Dependency directories
 node_modules/
-package-lock.json
+jspm_packages/
 
 # Environment variables
 .env
@@ -9,22 +9,25 @@ package-lock.json
 .env.test.local
 .env.production.local
 
-# Debug logs
+# Mac files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Logs
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
 
-# Build directories
-/dist
-/build
+# Cache directories
+.npm
+.eslintcache
+.cache
 
-# System Files
-.DS_Store
-Thumbs.db
-
-# IDE files
-.idea/
-.vscode/
-*.sublime-workspace
-*.swp
-*.swo 
+# Optional REPL history
+.node_repl_history

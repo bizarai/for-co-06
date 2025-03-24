@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Static Mapbox Test</title>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <style>
+        body { margin: 0; padding: 20px; font-family: sans-serif; }
+        #map { width: 100%; height: 500px; border: 2px solid #ccc; }
+        #log { margin-top: 20px; padding: 10px; background: #f8f9fa; font-family: monospace; white-space: pre-wrap; height: 200px; overflow: auto; }
+    </style>
+</head>
+<body>
+    <h1>Static Mapbox Test</h1>
+    <p>This file tests a direct Mapbox initialization without any server calls.</p>
+    
+    <div id="map"></div>
+    <div id="log">Log:</div>
+    
+    <script>
+        // Simple log function
+        function log(message) {
+            console.log(message);
+            const logEl = document.getElementById('log');
+            logEl.textContent += '\n' + message;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        // Log initial state
+        log(`Page loaded at ${new Date().toISOString()}`);
+        log(`Mapbox GL JS available: ${typeof mapboxgl !== 'undefined'}`);
+        if (typeof mapboxgl !== 'undefined') {
+            log(`Mapbox GL JS version: ${mapboxgl.version}`);
+        }
+        
+        // Initialize map with direct token
+        try {
+            log('Setting up map...');
+            
+            // Directly set the Mapbox token (your token)
+            mapboxgl.accessToken = 'pk.eyJ1IjoidHVmZmNyZWF0ZSIsImEiOiJjbHU5YXJxeXQwN2J6MmpsMDRvMGJ0dGhsIn0.neijgnnqzQ0aCHzOPrE_MQ';
+            log('Token set directly');
+            
+            // Create the map
+            log('Creating map instance...');
+            const map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/streets-v11',
+                center: [-98.5795, 39.8283], // Center of US
+                zoom: 3
+            });
+            
+            // Add navigation control
+            map.addControl(new mapboxgl.NavigationControl());
+            
+            // Map events
+            map.on('load', () => {
+                log('Map loaded successfully!');
+                
+                // Add a marker
+                new mapboxgl.Marker()
+                    .setLngLat([-98.5795, 39.8283])
+                    .addTo(map);
+                    
+                log('Marker added');
+            });
+            
+            map.on('error', (e) => {
+                log(`Map error: ${e.error ? e.error.message : 'Unknown error'}`);
+                console.error('Map error:', e);
+            });
+        } catch (error) {
+            log(`ERROR: ${error.message}`);
+            console.error('Map initialization error:', error);
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Visualization Test Tool</title>
+    
+    <!-- Mapbox GL JS CSS and JS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.5;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-height: 100vh;
+        }
+        
+        header {
+            background-color: #2a4365;
+            color: white;
+            padding: 1rem;
+        }
+        
+        header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 350px;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #dee2e6;
+        }
+        
+        #map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .control-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .control-section h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: #2a4365;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        button {
+            padding: 0.5rem 1rem;
+            background-color: #4a5568;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: #2d3748;
+        }
+        
+        button.primary {
+            background-color: #3182ce;
+        }
+        
+        button.primary:hover {
+            background-color: #2b6cb0;
+        }
+        
+        button.success {
+            background-color: #48bb78;
+        }
+        
+        button.success:hover {
+            background-color: #38a169;
+        }
+        
+        button.warning {
+            background-color: #ed8936;
+        }
+        
+        button.warning:hover {
+            background-color: #dd6b20;
+        }
+        
+        button.danger {
+            background-color: #e53e3e;
+        }
+        
+        button.danger:hover {
+            background-color: #c53030;
+        }
+        
+        #log-container {
+            flex: 1;
+            min-height: 200px;
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            font-family: monospace;
+            font-size: 0.85rem;
+            overflow-y: auto;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        
+        #debug-report {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        #debug-report h4 {
+            margin-top: 0.75rem;
+            margin-bottom: 0.5rem;
+            color: #2a4365;
+        }
+        
+        .loading-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 4px;
+            font-size: 1rem;
+            z-index: 10;
+        }
+        
+        .error {
+            color: #e53e3e;
+            font-weight: bold;
+        }
+        
+        .success {
+            color: #48bb78;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Map Visualization Test Tool</h1>
+        </header>
+        
+        <div class="content">
+            <div class="sidebar">
+                <div class="control-section">
+                    <h2>Map Initialization</h2>
+                    <div class="button-group">
+                        <button id="init-map" class="primary">Initialize Map</button>
+                        <button id="check-map-status">Check Map Status</button>
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <h2>Map Configuration</h2>
+                    <div class="button-group">
+                        <button id="setup-sources-layers">Add Sources & Layers</button>
+                        <button id="check-sources">Check Sources</button>
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <h2>Test Routes</h2>
+                    <div class="button-group">
+                        <button id="test-paris-london" class="success">Paris to London</button>
+                        <button id="test-usa-cities" class="success">USA Cities</button>
+                        <button id="test-europe-capitals" class="success">Europe Capitals</button>
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <h2>Diagnostic Tools</h2>
+                    <div class="button-group">
+                        <button id="generate-report" class="warning">Generate Debug Report</button>
+                        <button id="clear-log" class="danger">Clear Log</button>
+                    </div>
+                </div>
+                
+                <div id="debug-report"></div>
+                
+                <div id="log-container">
+                    Test log will appear here...
+                </div>
+            </div>
+            
+            <div id="map-container">
+                <div id="map"></div>
+                <div id="loading-message" class="loading-message" style="display: none;">
+                    Loading map...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import {
+            initTestMap,
+            setupMapSourcesAndLayers,
+            visualizeLocations,
+            visualizeRoute,
+            runVisualizationTest,
+            createVisualizationDebugReport
+        } from './visualization-test.js';
+        
+        // Global variables
+        let map = null;
+        let mapToken = null;
+        
+        // Logger function
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('log-container');
+            const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+            const formattedMessage = `[${timestamp}] ${message}`;
+            
+            console.log(formattedMessage);
+            
+            if (logContainer) {
+                if (type === 'error') {
+                    logContainer.innerHTML += `<div class="error">${formattedMessage}</div>`;
+                } else if (type === 'success') {
+                    logContainer.innerHTML += `<div class="success">${formattedMessage}</div>`;
+                } else {
+                    logContainer.innerHTML += `<div>${formattedMessage}</div>`;
+                }
+                
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+        }
+        
+        // Show loading message
+        function showLoading(message = 'Loading...') {
+            const loadingElement = document.getElementById('loading-message');
+            if (loadingElement) {
+                loadingElement.textContent = message;
+                loadingElement.style.display = 'block';
+            }
+        }
+        
+        // Hide loading message
+        function hideLoading() {
+            const loadingElement = document.getElementById('loading-message');
+            if (loadingElement) {
+                loadingElement.style.display = 'none';
+            }
+        }
+        
+        // Fetch Mapbox token
+        async function fetchMapboxToken() {
+            try {
+                log('Fetching Mapbox token...');
+                showLoading('Fetching Mapbox token...');
+                
+                const response = await fetch('/api/mapbox-token');
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to get token: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                const token = data.token;
+                
+                if (!token) {
+                    throw new Error('No token received from server');
+                }
+                
+                log(`Token received: ${token.substring(0, 8)}...`, 'success');
+                hideLoading();
+                
+                return token;
+            } catch (error) {
+                log(`Error fetching token: ${error.message}`, 'error');
+                hideLoading();
+                throw error;
+            }
+        }
+        
+        // Initialize map button handler
+        async function handleInitMap() {
+            try {
+                log('Initializing map...');
+                showLoading('Initializing map...');
+                
+                if (!mapToken) {
+                    mapToken = await fetchMapboxToken();
+                }
+                
+                if (map) {
+                    log('Map already initialized, removing...');
+                    map.remove();
+                    map = null;
+                }
+                
+                map = await initTestMap('map', mapToken);
+                log('Map initialized successfully', 'success');
+                hideLoading();
+                
+                // Generate a debug report
+                updateDebugReport();
+                
+            } catch (error) {
+                log(`Error initializing map: ${error.message}`, 'error');
+                hideLoading();
+            }
+        }
+        
+        // Check map status button handler
+        function handleCheckMapStatus() {
+            log('Checking map status...');
+            
+            if (!map) {
+                log('Map not initialized', 'error');
+                return;
+            }
+            
+            try {
+                const isLoaded = map.loaded();
+                const hasContainer = !!map.getContainer();
+                const center = map.getCenter();
+                const zoom = map.getZoom();
+                
+                log(`Map loaded: ${isLoaded ? 'Yes' : 'No'}`, isLoaded ? 'success' : 'error');
+                log(`Map has container: ${hasContainer ? 'Yes' : 'No'}`, hasContainer ? 'success' : 'error');
+                log(`Map center: ${center.lng.toFixed(4)}, ${center.lat.toFixed(4)}`);
+                log(`Map zoom: ${zoom.toFixed(2)}`);
+                
+            } catch (error) {
+                log(`Error checking map status: ${error.message}`, 'error');
+            }
+        }
+        
+        // Setup sources and layers button handler
+        async function handleSetupSourcesLayers() {
+            log('Setting up sources and layers...');
+            
+            if (!map) {
+                log('Map not initialized', 'error');
+                return;
+            }
+            
+            try {
+                await setupMapSourcesAndLayers(map);
+                log('Sources and layers setup complete', 'success');
+                updateDebugReport();
+                
+            } catch (error) {
+                log(`Error setting up sources and layers: ${error.message}`, 'error');
+            }
+        }
+        
+        // Check sources button handler
+        function handleCheckSources() {
+            log('Checking sources...');
+            
+            if (!map) {
+                log('Map not initialized', 'error');
+                return;
+            }
+            
+            try {
+                let locationsSource = false;
+                let routeSource = false;
+                
+                try {
+                    locationsSource = !!map.getSource('locations');
+                } catch (e) {
+                    // Source doesn't exist
+                }
+                
+                try {
+                    routeSource = !!map.getSource('route');
+                } catch (e) {
+                    // Source doesn't exist
+                }
+                
+                log(`Locations source: ${locationsSource ? 'Present' : 'Missing'}`, locationsSource ? 'success' : 'error');
+                log(`Route source: ${routeSource ? 'Present' : 'Missing'}`, routeSource ? 'success' : 'error');
+                
+            } catch (error) {
+                log(`Error checking sources: ${error.message}`, 'error');
+            }
+        }
+        
+        // Test visualization button handlers
+        async function handleTestVisualization(testName) {
+            log(`Running visualization test: ${testName}...`);
+            
+            if (!map) {
+                log('Map not initialized, initializing now...', 'error');
+                await handleInitMap();
+            }
+            
+            if (!map) {
+                log('Map initialization failed', 'error');
+                return;
+            }
+            
+            try {
+                showLoading(`Running test: ${testName}...`);
+                const testData = await runVisualizationTest(map, testName);
+                log(`Visualization test "${testName}" completed successfully`, 'success');
+                log(`Visualized ${testData.locations.length} locations`);
+                hideLoading();
+                
+            } catch (error) {
+                log(`Error running visualization test: ${error.message}`, 'error');
+                hideLoading();
+            }
+        }
+        
+        // Generate debug report button handler
+        function handleGenerateReport() {
+            log('Generating debug report...');
+            updateDebugReport();
+        }
+        
+        // Update the debug report
+        function updateDebugReport() {
+            const reportContainer = document.getElementById('debug-report');
+            
+            if (!reportContainer) {
+                return;
+            }
+            
+            if (!map) {
+                reportContainer.innerHTML = '<div class="error">Map not initialized</div>';
+                return;
+            }
+            
+            reportContainer.innerHTML = createVisualizationDebugReport(map);
+            log('Debug report updated', 'success');
+        }
+        
+        // Clear log button handler
+        function handleClearLog() {
+            const logContainer = document.getElementById('log-container');
+            
+            if (logContainer) {
+                logContainer.innerHTML = '';
+                log('Log cleared', 'success');
+            }
+        }
+        
+        // Set up event listeners when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // Map initialization buttons
+            document.getElementById('init-map').addEventListener('click', handleInitMap);
+            document.getElementById('check-map-status').addEventListener('click', handleCheckMapStatus);
+            
+            // Map configuration buttons
+            document.getElementById('setup-sources-layers').addEventListener('click', handleSetupSourcesLayers);
+            document.getElementById('check-sources').addEventListener('click', handleCheckSources);
+            
+            // Test route buttons
+            document.getElementById('test-paris-london').addEventListener('click', () => handleTestVisualization('parisToLondon'));
+            document.getElementById('test-usa-cities').addEventListener('click', () => handleTestVisualization('usaCities'));
+            document.getElementById('test-europe-capitals').addEventListener('click', () => handleTestVisualization('europeCapitals'));
+            
+            // Diagnostic tool buttons
+            document.getElementById('generate-report').addEventListener('click', handleGenerateReport);
+            document.getElementById('clear-log').addEventListener('click', handleClearLog);
+            
+            log('Visualization test tool loaded', 'success');
+            log('Click "Initialize Map" to begin');
+        });
+        
+        // Handle errors globally
+        window.addEventListener('error', (event) => {
+            log(`Global error: ${event.message}`, 'error');
+            console.error('Global error:', event);
+        });
+    </script>
+</body>
+</html> 

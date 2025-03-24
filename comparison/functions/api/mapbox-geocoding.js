@@ -1,4 +1,4 @@
-// Cloudflare Pages Function to handle directions requests securely
+// Cloudflare Pages Function to handle geocoding requests securely
 
 export async function onRequest(context) {
   // Add CORS headers
@@ -51,11 +51,11 @@ export async function onRequest(context) {
     }
     
     const body = await request.json();
-    const { coordinates, profile = 'driving' } = body;
+    const { location } = body;
     
-    if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) {
+    if (!location) {
       return new Response(
-        JSON.stringify({ error: 'At least two coordinates are required' }),
+        JSON.stringify({ error: 'Location is required' }),
         {
           status: 400,
           headers: {
@@ -66,19 +66,9 @@ export async function onRequest(context) {
       );
     }
     
-    // Format coordinates for Mapbox API: lon,lat;lon,lat;...
-    const coordinatesStr = coordinates
-      .map(coord => Array.isArray(coord) ? coord.join(',') : coord)
-      .join(';');
-    
-    // Add query parameters for route preferences
-    const queryParams = new URLSearchParams({
-      access_token: MAPBOX_TOKEN,
-      geometries: 'geojson',
-      overview: 'full'
-    });
-    
-    const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coordinatesStr}?${queryParams}`;
+    // Geocode the location using Mapbox API
+    const encodedLocation = encodeURIComponent(location);
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedLocation}.json?access_token=${MAPBOX_TOKEN}&limit=1`;
     
     const response = await fetch(url);
     
@@ -88,9 +78,9 @@ export async function onRequest(context) {
     
     const data = await response.json();
     
-    if (!data.routes || data.routes.length === 0) {
+    if (!data.features || data.features.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'No route found' }),
+        JSON.stringify({ error: `Location "${location}" not found` }),
         {
           status: 404,
           headers: {
@@ -101,14 +91,14 @@ export async function onRequest(context) {
       );
     }
     
-    // Return the route information
+    const feature = data.features[0];
+    
+    // Return the geocoded location
     return new Response(
       JSON.stringify({
-        route: {
-          geometry: data.routes[0].geometry,
-          distance: data.routes[0].distance,
-          duration: data.routes[0].duration
-        }
+        coordinates: feature.center, // [longitude, latitude]
+        placeName: feature.place_name,
+        id: feature.id
       }),
       {
         status: 200,
@@ -120,10 +110,10 @@ export async function onRequest(context) {
     );
     
   } catch (error) {
-    console.error('Directions error:', error);
+    console.error('Geocoding error:', error);
     
     return new Response(
-      JSON.stringify({ error: 'Error getting directions' }),
+      JSON.stringify({ error: 'Error geocoding location' }),
       {
         status: 500,
         headers: {

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Map Visualization</title>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .map-container {
+            margin: 20px 0;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 500px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        
+        .control-panel {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        #message {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        #debug-info {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 20px;
+            background-color: #f5f5f5;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fix Map Visualization</h1>
+    
+    <div class="control-panel">
+        <h2>Map Controls</h2>
+        <button id="init-map">Initialize Map</button>
+        <button id="check-map">Check Map Status</button>
+        <button id="add-sources">Add Sources &amp; Layers</button>
+    </div>
+    
+    <div class="map-container">
+        <div id="map"></div>
+    </div>
+    
+    <div class="control-panel">
+        <h2>Visualization Tests</h2>
+        <button id="test-paris-london">Test Paris to London</button>
+        <button id="test-nyc-la">Test NYC to LA</button>
+        <button id="test-direct-line">Draw Direct Line</button>
+    </div>
+    
+    <div id="message">Ready to test visualization</div>
+    
+    <div id="debug-info">Debug information will appear here...</div>
+    
+    <script type="module">
+        // Import visualization module
+        import { applyVisualization } from './visualization-integration.js';
+        
+        // Global variables
+        let map = null;
+        let mapboxToken = null;
+        
+        // Debug logger
+        function log(message) {
+            const now = new Date().toISOString();
+            console.log(`[${now}] ${message}`);
+            
+            const debugInfo = document.getElementById('debug-info');
+            debugInfo.textContent += `\n[${now}] ${message}`;
+            debugInfo.scrollTop = debugInfo.scrollHeight;
+        }
+        
+        // Show message
+        function showMessage(message, isError = false) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = message;
+            messageEl.style.borderLeftColor = isError ? '#dc3545' : '#4CAF50';
+            messageEl.style.backgroundColor = isError ? '#f8d7da' : '#f5f5f5';
+        }
+        
+        // Initialize the map
+        async function initMap() {
+            log('Initializing map...');
+            showMessage('Initializing map...');
+            
+            try {
+                // Get Mapbox token
+                log('Fetching Mapbox token...');
+                const response = await fetch('/api/mapbox-token');
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch token: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                mapboxToken = data.token;
+                log(`Token received: ${mapboxToken.substring(0, 8)}...`);
+                
+                // Check if map already exists
+                if (map) {
+                    log('Map already exists, removing...');
+                    map.remove();
+                }
+                
+                // Clear the map container
+                const mapContainer = document.getElementById('map');
+                mapContainer.innerHTML = '';
+                
+                // Initialize Mapbox
+                mapboxgl.accessToken = mapboxToken;
+                log('Creating new map instance...');
+                
+                map = new mapboxgl.Map({
+                    container: 'map',
+                    style: 'mapbox://styles/mapbox/streets-v12',
+                    center: [0, 20], // World view
+                    zoom: 2
+                });
+                
+                map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+                
+                // Wait for map to load
+                await new Promise((resolve) => {
+                    map.on('load', () => {
+                        log('Map loaded successfully');
+                        resolve();
+                    });
+                });
+                
+                showMessage('Map initialized successfully');
+                return true;
+            } catch (error) {
+                log(`ERROR: ${error.message}`);
+                showMessage(`Map initialization error: ${error.message}`, true);
+                return false;
+            }
+        }
+        
+        // Check map status
+        function checkMap() {
+            log('Checking map status...');
+            
+            if (!map) {
+                log('Map is not initialized');
+                showMessage('Map is not initialized', true);
+                return false;
+            }
+            
+            try {
+                log(`Map initialized: ${map ? 'YES' : 'NO'}`);
+                log(`Map loaded: ${map.loaded ? (map.loaded() ? 'YES' : 'NO') : 'Cannot determine'}`);
+                log(`Map has getSource method: ${map.getSource ? 'YES' : 'NO'}`);
+                
+                // Check if sources exist
+                if (map.getSource) {
+                    try {
+                        log(`Locations source exists: ${map.getSource('locations') ? 'YES' : 'NO'}`);
+                    } catch (e) {
+                        log(`Locations source error: ${e.message}`);
+                    }
+                    
+                    try {
+                        log(`Route source exists: ${map.getSource('route') ? 'YES' : 'NO'}`);
+                    } catch (e) {
+                        log(`Route source error: ${e.message}`);
+                    }
+                }
+                
+                showMessage('Map status checked - see debug info');
+                return true;
+            } catch (error) {
+                log(`ERROR checking map: ${error.message}`);
+                showMessage(`Error checking map: ${error.message}`, true);
+                return false;
+            }
+        }
+        
+        // Add sources and layers to the map
+        function addSources() {
+            log('Adding sources and layers to map...');
+            
+            if (!map) {
+                log('Map is not initialized');
+                showMessage('Map is not initialized', true);
+                return false;
+            }
+            
+            try {
+                // Check if sources already exist and remove them
+                if (map.getSource('locations')) {
+                    log('Removing existing locations source');
+                    map.removeLayer('locations-layer');
+                    map.removeSource('locations');
+                }
+                
+                if (map.getSource('route')) {
+                    log('Removing existing route source');
+                    map.removeLayer('route-layer');
+                    map.removeSource('route');
+                }
+                
+                // Add sources
+                log('Adding locations source');
+                map.addSource('locations', {
+                    type: 'geojson',
+                    data: {
+                        type: 'FeatureCollection',
+                        features: []
+                    }
+                });
+                
+                log('Adding route source');
+                map.addSource('route', {
+                    type: 'geojson',
+                    data: {
+                        type: 'Feature',
+                        geometry: {
+                            type: 'LineString',
+                            coordinates: []
+                        }
+                    }
+                });
+                
+                // Add layers
+                log('Adding locations layer');
+                map.addLayer({
+                    id: 'locations-layer',
+                    type: 'circle',
+                    source: 'locations',
+                    paint: {
+                        'circle-radius': 8,
+                        'circle-color': '#3887be',
+                        'circle-stroke-width': 2,
+                        'circle-stroke-color': '#ffffff'
+                    }
+                });
+                
+                log('Adding route layer');
+                map.addLayer({
+                    id: 'route-layer',
+                    type: 'line',
+                    source: 'route',
+                    layout: {
+                        'line-join': 'round',
+                        'line-cap': 'round'
+                    },
+                    paint: {
+                        'line-color': '#3887be',
+                        'line-width': 4,
+                        'line-opacity': 0.8
+                    }
+                });
+                
+                log('Sources and layers added successfully');
+                showMessage('Sources and layers added successfully');
+                return true;
+            } catch (error) {
+                log(`ERROR adding sources: ${error.message}`);
+                showMessage(`Error adding sources: ${error.message}`, true);
+                return false;
+            }
+        }
+        
+        // Test Paris to London route
+        async function testParisLondon() {
+            log('Testing Paris to London route...');
+            
+            if (!map) {
+                log('Map is not initialized, initializing now...');
+                await initMap();
+                addSources();
+            }
+            
+            try {
+                const result = {
+                    intentType: "route",
+                    locations: [
+                        { name: "Paris", timeContext: "" },
+                        { name: "London", timeContext: "" }
+                    ],
+                    visualizationType: "default",
+                    travelMode: "driving",
+                    preferences: [],
+                    message: "Showing route from Paris to London",
+                    suggestedSequence: ["Paris", "London"]
+                };
+                
+                log('Applying visualization with result: ' + JSON.stringify(result));
+                await applyVisualization(result, map);
+                log('Visualization applied successfully');
+                showMessage('Paris to London route visualized');
+            } catch (error) {
+                log(`ERROR: ${error.message}`);
+                showMessage(`Error visualizing route: ${error.message}`, true);
+            }
+        }
+        
+        // Test NYC to LA route
+        async function testNycLA() {
+            log('Testing NYC to LA route...');
+            
+            if (!map) {
+                log('Map is not initialized, initializing now...');
+                await initMap();
+                addSources();
+            }
+            
+            try {
+                const result = {
+                    intentType: "route",
+                    locations: [
+                        { name: "New York", timeContext: "" },
+                        { name: "Los Angeles", timeContext: "" }
+                    ],
+                    visualizationType: "default",
+                    travelMode: "driving",
+                    preferences: [],
+                    message: "Showing route from New York to Los Angeles",
+                    suggestedSequence: ["New York", "Los Angeles"]
+                };
+                
+                log('Applying visualization with result: ' + JSON.stringify(result));
+                await applyVisualization(result, map);
+                log('Visualization applied successfully');
+                showMessage('NYC to LA route visualized');
+            } catch (error) {
+                log(`ERROR: ${error.message}`);
+                showMessage(`Error visualizing route: ${error.message}`, true);
+            }
+        }
+        
+        // Draw direct line on map
+        function drawDirectLine() {
+            log('Drawing direct line on map...');
+            
+            if (!map) {
+                log('Map is not initialized');
+                showMessage('Map is not initialized', true);
+                return;
+            }
+            
+            try {
+                // Update the route source directly
+                map.getSource('route').setData({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: [
+                            [2.3522, 48.8566],  // Paris
+                            [-0.1278, 51.5074]  // London
+                        ]
+                    }
+                });
+                
+                // Add point features for Paris and London
+                map.getSource('locations').setData({
+                    type: 'FeatureCollection',
+                    features: [
+                        {
+                            type: 'Feature',
+                            geometry: {
+                                type: 'Point',
+                                coordinates: [2.3522, 48.8566]
+                            },
+                            properties: {
+                                name: 'Paris',
+                                description: 'Paris, France'
+                            }
+                        },
+                        {
+                            type: 'Feature',
+                            geometry: {
+                                type: 'Point',
+                                coordinates: [-0.1278, 51.5074]
+                            },
+                            properties: {
+                                name: 'London',
+                                description: 'London, UK'
+                            }
+                        }
+                    ]
+                });
+                
+                // Fit bounds to see both points
+                map.fitBounds([
+                    [2.3522, 48.8566],  // Paris
+                    [-0.1278, 51.5074]  // London
+                ], { padding: 50 });
+                
+                log('Direct line drawn successfully');
+                showMessage('Direct line drawn successfully');
+            } catch (error) {
+                log(`ERROR drawing line: ${error.message}`);
+                showMessage(`Error drawing line: ${error.message}`, true);
+            }
+        }
+        
+        // Set up event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Page loaded, setting up event listeners...');
+            
+            // Map control buttons
+            document.getElementById('init-map').addEventListener('click', initMap);
+            document.getElementById('check-map').addEventListener('click', checkMap);
+            document.getElementById('add-sources').addEventListener('click', addSources);
+            
+            // Test buttons
+            document.getElementById('test-paris-london').addEventListener('click', testParisLondon);
+            document.getElementById('test-nyc-la').addEventListener('click', testNycLA);
+            document.getElementById('test-direct-line').addEventListener('click', drawDirectLine);
+            
+            log('Event listeners set up, ready to test visualization');
+        });
+    </script>
+</body>
+</html> 

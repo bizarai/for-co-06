@@ -7,9 +7,6 @@ const fetch = require('node-fetch');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Log server startup with cleaned directory structure
-console.log('Starting server with cleaned directory structure');
-
 // Increase the default fetch timeout
 const fetchWithTimeout = (url, options, timeout = 15000) => {
   return Promise.race([
@@ -51,12 +48,7 @@ if (USE_MOCK_DATA) {
 
 // Middleware
 app.use(express.json());
-
-// Serve main application files
-app.use(express.static(path.join(__dirname, 'main')));
-
-// Serve comparison application files
-app.use('/comparison', express.static(path.join(__dirname, 'comparison')));
+app.use(express.static('./'));  // Serve static files from current directory
 
 // API endpoint to get Mapbox token
 app.get('/api/mapbox-token', (req, res) => {
@@ -351,24 +343,28 @@ app.get('/api/debug', (req, res) => {
 
 // Serve the debug page
 app.get('/debug.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'main/debug.html'));
+  res.sendFile(path.join(__dirname, 'debug.html'));
 });
 
-// Add specific route for comparison version index
+// Add new routes for comparison version
 app.get('/comparison', (req, res) => {
   res.sendFile(path.join(__dirname, 'comparison/index.html'));
 });
 
-// Catch-all route to serve main index.html for all other requests
+app.get('/comparison/:filename', (req, res) => {
+  const filename = req.params.filename;
+  res.sendFile(path.join(__dirname, 'comparison', filename));
+});
+
+// Catch-all route to serve index.html for all other requests
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'main/index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
-  console.log('Main application: http://localhost:3000');
-  console.log('Comparison application: http://localhost:3000/comparison');
+  console.log('Map visualization available at http://localhost:3000');
   console.log('API endpoints:');
   console.log('- GET /api/mapbox-token');
   console.log('- GET /api/directions?coordinates=lng,lat;lng,lat&profile=mapbox/driving');

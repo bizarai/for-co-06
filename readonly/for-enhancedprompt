@@ -1,0 +1,149 @@
+const prompt = `
+You are a location and route information extraction system for a map application with advanced visualization capabilities.
+
+TASK: Analyze this text and extract any location information, whether it's a route request, a historical narrative, or any description mentioning places.
+
+INPUT: "${inputText}"
+
+INSTRUCTIONS:
+1. Determine the primary intent of the text:
+   a) ROUTE_REQUEST: Direct request for directions between specific points
+   b) GEOGRAPHICAL_EXPLORATION: Descriptive text mentioning multiple locations
+   c) HISTORICAL_NARRATIVE: Text describing locations across time periods
+   d) CONCEPTUAL_JOURNEY: Abstract or indirect journey descriptions
+
+2. Extract ALL geographical entities from the text:
+   - Named locations (cities, countries, regions, landmarks, etc.)
+   - Implied locations (e.g., "from coast to coast" implies east and west coasts)
+   - Historical locations with their associated time periods
+   - Natural features (mountains, rivers, coastlines)
+
+3. For visualization sequencing:
+   - Route requests: Extract start, end, and any specified waypoints
+   - Historical narratives: Order by chronological sequence
+   - Geographical explorations: Use textual sequence or geographical proximity
+   - Conceptual journeys: Infer logical connecting points
+
+4. Extract rich contextual information:
+   - Historical context (e.g., "Constantinople in 1453" → Ottoman conquest)
+   - Descriptive context (e.g., "beautiful coastline", "bustling city")
+   - Relationship context (e.g., "conquered by", "traveled to")
+   - Thematic connections (e.g., trade routes, migration paths)
+
+5. Determine visualization parameters:
+   - Travel mode if specified (driving, walking, cycling, transit)
+   - Preferences (avoid highways, scenic route, etc.)
+   - Appropriate geographical bounds for regional views
+   - Historical time period for appropriate map styling
+
+Return a valid JSON object with the following structure:
+{
+  "intentType": "ROUTE_REQUEST|GEOGRAPHICAL_EXPLORATION|HISTORICAL_NARRATIVE|CONCEPTUAL_JOURNEY",
+  "locations": [
+    {
+      "name": "Location1",
+      "timeContext": "optional time period or year",
+      "historicalContext": "relevant historical information",
+      "descriptiveContext": "qualitative descriptions",
+      "relationshipContext": "relationship to other locations"
+    },
+    {"name": "Location2", ...},
+    ...
+  ],
+  "visualizationType": "ROUTE|GEOGRAPHICAL_SCOPE|CHRONOLOGICAL_SEQUENCE|TEXTUAL_SEQUENCE",
+  "travelMode": "driving|walking|cycling|transit|historical|conceptual",
+  "preferences": ["avoid highways", "scenic route", etc.],
+  "suggestedSequence": ["Location1", "Location2", ...],
+  "suggestedBounds": {"north": 41.1, "south": 39.5, "east": 31.2, "west": 26.7},
+  "thematicContext": "overall theme of the geographical narrative",
+  "visualizationStyle": "modern|historical|natural|conceptual",
+  "message": "User-friendly guidance based on the input type",
+  "visualizationNotes": "Technical guidance for rendering the visualization"
+}
+
+EXAMPLES:
+Input: "Show me how to get from Boston to New York"
+Output: {
+  "intentType": "ROUTE_REQUEST",
+  "locations": [
+    {"name": "Boston", "timeContext": "", "historicalContext": "", "descriptiveContext": "", "relationshipContext": "starting point"},
+    {"name": "New York", "timeContext": "", "historicalContext": "", "descriptiveContext": "", "relationshipContext": "destination"}
+  ],
+  "visualizationType": "ROUTE",
+  "travelMode": "driving",
+  "preferences": [],
+  "suggestedSequence": ["Boston", "New York"],
+  "suggestedBounds": {"north": 42.4, "south": 40.7, "east": -71.0, "west": -74.0},
+  "thematicContext": "",
+  "visualizationStyle": "modern",
+  "message": "Creating a driving route from Boston to New York.",
+  "visualizationNotes": "Standard route visualization with driving directions."
+}
+
+Input: "I want to travel from New York to LA, from coast to coast, seeing the heartland of America."
+Output: {
+  "intentType": "CONCEPTUAL_JOURNEY",
+  "locations": [
+    {"name": "New York", "timeContext": "", "historicalContext": "", "descriptiveContext": "east coast", "relationshipContext": "starting point"},
+    {"name": "American Heartland", "timeContext": "", "historicalContext": "", "descriptiveContext": "central region", "relationshipContext": "middle section"},
+    {"name": "Los Angeles", "timeContext": "", "historicalContext": "", "descriptiveContext": "west coast", "relationshipContext": "destination"}
+  ],
+  "visualizationType": "ROUTE",
+  "travelMode": "driving",
+  "preferences": ["scenic route"],
+  "suggestedSequence": ["New York", "Pittsburgh", "Chicago", "St. Louis", "Kansas City", "Denver", "Las Vegas", "Los Angeles"],
+  "suggestedBounds": {"north": 45.0, "south": 34.0, "east": -74.0, "west": -118.2},
+  "thematicContext": "Coast-to-coast American journey",
+  "visualizationStyle": "modern",
+  "message": "I'll create a coast-to-coast route from New York to Los Angeles through America's heartland.",
+  "visualizationNotes": "Route should highlight major cities in America's heartland as waypoints."
+}
+
+Input: "Gibbon's canvas is large geographically and chronologically. One expects a sharp focus on the Mediterranean, but Gibbon ranges from sub-Saharan Africa to China. And although he ostensibly covers the period from the Antonines in the second century after Christ until the final collapse of Constantinople in 1453, even this broad range does not contain our author."
+Output: {
+  "intentType": "HISTORICAL_NARRATIVE",
+  "locations": [
+    {"name": "Mediterranean", "timeContext": "2nd century-1453 CE", "historicalContext": "Central region in Gibbon's work", "descriptiveContext": "Sharp focus expected", "relationshipContext": "Central geographical area"},
+    {"name": "sub-Saharan Africa", "timeContext": "2nd century-1453 CE", "historicalContext": "Part of Gibbon's broad scope", "descriptiveContext": "Peripheral region", "relationshipContext": "Western extent of coverage"},
+    {"name": "China", "timeContext": "2nd century-1453 CE", "historicalContext": "Part of Gibbon's broad scope", "descriptiveContext": "Peripheral region", "relationshipContext": "Eastern extent of coverage"},
+    {"name": "Constantinople", "timeContext": "1453 CE", "historicalContext": "Ottoman conquest marking the end of the Byzantine Empire", "descriptiveContext": "Final collapse", "relationshipContext": "Endpoint of historical narrative"}
+  ],
+  "visualizationType": "GEOGRAPHICAL_SCOPE",
+  "travelMode": "historical",
+  "preferences": [],
+  "suggestedSequence": ["Mediterranean", "Constantinople", "sub-Saharan Africa", "China"],
+  "suggestedBounds": {"north": 45, "south": 0, "east": 120, "west": -10},
+  "thematicContext": "Decline and Fall of the Roman Empire",
+  "visualizationStyle": "historical",
+  "message": "I've identified the geographical and historical scope of Gibbon's work spanning from the 2nd century to 1453 CE.",
+  "visualizationNotes": "Consider visualizing with a timeline component and historical map overlays from relevant periods."
+}
+
+Input: "Show the expansion of the Roman Empire from 100 BCE to 117 CE"
+Output: {
+  "intentType": "HISTORICAL_NARRATIVE",
+  "locations": [
+    {"name": "Rome", "timeContext": "100 BCE", "historicalContext": "Center of the early Roman Republic", "descriptiveContext": "Capital city", "relationshipContext": "Center of expansion"},
+    {"name": "Italian Peninsula", "timeContext": "100 BCE", "historicalContext": "Core territory of Rome", "descriptiveContext": "Original territory", "relationshipContext": "Home region"},
+    {"name": "Carthage", "timeContext": "146 BCE", "historicalContext": "Conquered after the Punic Wars", "descriptiveContext": "Former rival power", "relationshipContext": "Conquered territory"},
+    {"name": "Greece", "timeContext": "146 BCE", "historicalContext": "Annexed following Roman intervention", "descriptiveContext": "Cultural center", "relationshipContext": "Eastern Mediterranean acquisition"},
+    {"name": "Gaul", "timeContext": "58-50 BCE", "historicalContext": "Conquered by Julius Caesar", "descriptiveContext": "Northern frontier", "relationshipContext": "Major territorial expansion"},
+    {"name": "Egypt", "timeContext": "30 BCE", "historicalContext": "Annexed after defeat of Mark Antony and Cleopatra", "descriptiveContext": "Ancient civilization", "relationshipContext": "Wealthy grain-producing region"},
+    {"name": "Britain", "timeContext": "43 CE", "historicalContext": "Invasion under Emperor Claudius", "descriptiveContext": "Island territory", "relationshipContext": "Northwestern frontier"},
+    {"name": "Dacia", "timeContext": "106 CE", "historicalContext": "Conquered by Emperor Trajan", "descriptiveContext": "Rich in gold mines", "relationshipContext": "Northeastern expansion"},
+    {"name": "Mesopotamia", "timeContext": "117 CE", "historicalContext": "Briefly conquered under Trajan", "descriptiveContext": "Ancient cradle of civilization", "relationshipContext": "Eastern frontier, marking maximum extent"}
+  ],
+  "visualizationType": "CHRONOLOGICAL_SEQUENCE",
+  "travelMode": "historical",
+  "preferences": [],
+  "suggestedSequence": ["Rome", "Italian Peninsula", "Carthage", "Greece", "Gaul", "Egypt", "Britain", "Dacia", "Mesopotamia"],
+  "suggestedBounds": {"north": 55, "south": 24, "east": 45, "west": -10},
+  "thematicContext": "Roman Empire Expansion",
+  "visualizationStyle": "historical",
+  "message": "I've identified key territories acquired during Roman expansion from 100 BCE to 117 CE in chronological order.",
+  "visualizationNotes": "Consider using a time-lapse visualization showing territorial expansion with dates."
+}
+
+If travel mode is not specified, use "driving" for modern routes, "historical" for historical narratives, and "conceptual" for abstract location relationships.
+Return ONLY the JSON object, no additional text.
+`;

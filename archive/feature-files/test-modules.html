@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module Import Test</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Module Import Test</h1>
+    <button id="run-test">Run Test</button>
+    <div id="results"></div>
+
+    <script type="module">
+        document.getElementById('run-test').addEventListener('click', async () => {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing module imports...</p>';
+            
+            const testLog = [];
+            
+            try {
+                // 1. Test app-init.js
+                try {
+                    const appInit = await import('./app-init.js');
+                    testLog.push(`✅ app-init.js imported successfully`);
+                    testLog.push(`   Exported functions: ${Object.keys(appInit).join(', ')}`);
+                    
+                    // Test if initializeMap exists
+                    if (typeof appInit.initializeMap === 'function') {
+                        testLog.push(`   ✅ initializeMap function exists`);
+                    } else {
+                        testLog.push(`   ❌ initializeMap function not found`);
+                    }
+                    
+                    // Test if updateMapStyle exists
+                    if (typeof appInit.updateMapStyle === 'function') {
+                        testLog.push(`   ✅ updateMapStyle function exists`);
+                    } else {
+                        testLog.push(`   ❌ updateMapStyle function not found`);
+                    }
+                } catch (error) {
+                    testLog.push(`❌ Error importing app-init.js: ${error.message}`);
+                }
+                
+                // 2. Test enhanced-nlp-improved.js
+                try {
+                    const enhancedNlp = await import('./enhanced-nlp-improved.js');
+                    testLog.push(`✅ enhanced-nlp-improved.js imported successfully`);
+                    testLog.push(`   Exported functions: ${Object.keys(enhancedNlp).join(', ')}`);
+                    
+                    // Test if processNaturalLanguageInput exists
+                    if (typeof enhancedNlp.processNaturalLanguageInput === 'function') {
+                        testLog.push(`   ✅ processNaturalLanguageInput function exists`);
+                    } else {
+                        testLog.push(`   ❌ processNaturalLanguageInput function not found`);
+                    }
+                } catch (error) {
+                    testLog.push(`❌ Error importing enhanced-nlp-improved.js: ${error.message}`);
+                }
+                
+                // 3. Test visualization-integration.js
+                try {
+                    const vizIntegration = await import('./visualization-integration.js');
+                    testLog.push(`✅ visualization-integration.js imported successfully`);
+                    testLog.push(`   Exported functions: ${Object.keys(vizIntegration).join(', ')}`);
+                    
+                    // Test if applyVisualization exists
+                    if (typeof vizIntegration.applyVisualization === 'function') {
+                        testLog.push(`   ✅ applyVisualization function exists`);
+                    } else {
+                        testLog.push(`   ❌ applyVisualization function not found`);
+                    }
+                } catch (error) {
+                    testLog.push(`❌ Error importing visualization-integration.js: ${error.message}`);
+                }
+                
+                // 4. Test nlp-utils.js (imported by enhanced-nlp-improved.js)
+                try {
+                    const nlpUtils = await import('./nlp-utils.js');
+                    testLog.push(`✅ nlp-utils.js imported successfully`);
+                    testLog.push(`   Exported functions: ${Object.keys(nlpUtils).join(', ')}`);
+                } catch (error) {
+                    testLog.push(`❌ Error importing nlp-utils.js: ${error.message}`);
+                }
+                
+                // Test API endpoints
+                testLog.push(`\nTesting API endpoints...`);
+                
+                // Test Mapbox token API
+                try {
+                    const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
+                    const response = await fetch(`${API_URL}/api/mapbox-token`);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.token) {
+                            testLog.push(`✅ Mapbox token API works: ${data.token.substring(0, 10)}...`);
+                        } else {
+                            testLog.push(`❌ Mapbox token API returned invalid data`);
+                        }
+                    } else {
+                        testLog.push(`❌ Mapbox token API failed: ${response.status} ${response.statusText}`);
+                    }
+                } catch (error) {
+                    testLog.push(`❌ Error testing Mapbox token API: ${error.message}`);
+                }
+                
+                // Render results
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <h3>Test Results</h3>
+                    <pre>${testLog.join('\n')}</pre>
+                `;
+                results.innerHTML = '';
+                results.appendChild(resultDiv);
+                
+            } catch (error) {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>Test Failed</h3>
+                    <p>${error.message}</p>
+                    <pre>${error.stack}</pre>
+                    <pre>${testLog.join('\n')}</pre>
+                `;
+                results.innerHTML = '';
+                results.appendChild(resultDiv);
+            }
+        });
+    </script>
+</body>
+</html> 

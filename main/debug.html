@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Visualization - Debug Page</title>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        
+        h1 {
+            color: #0078ff;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #555;
+            margin-top: 30px;
+        }
+        
+        .debug-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #0078ff;
+        }
+        
+        .debug-map {
+            width: 100%;
+            height: 300px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        
+        button {
+            background-color: #0078ff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        
+        .error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        
+        input[type="text"] {
+            padding: 10px;
+            width: 100%;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Map Visualization Debug Page</h1>
+    <p>Use this page to test individual components of the application</p>
+    
+    <div class="debug-section">
+        <h2>1. API Status Check</h2>
+        <button id="check-api-status">Check API Status</button>
+        <div id="api-status-result" class="result"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>2. Mapbox Token Test</h2>
+        <button id="test-mapbox-token">Test Mapbox Token</button>
+        <div id="mapbox-token-result" class="result"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>3. Map Initialization Test</h2>
+        <button id="init-test-map">Initialize Test Map</button>
+        <div id="test-map" class="debug-map"></div>
+        <div id="map-init-result" class="result"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>4. Geocoding Test</h2>
+        <input type="text" id="geocode-input" placeholder="Enter a location name (e.g. New York)">
+        <button id="test-geocoding">Test Geocoding</button>
+        <div id="geocoding-result" class="result"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>5. Directions API Test</h2>
+        <button id="test-directions">Test Directions API (New York to Boston)</button>
+        <div id="directions-result" class="result"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>6. NLP Test</h2>
+        <input type="text" id="nlp-test-input" placeholder="Enter a natural language query">
+        <button id="test-nlp">Test NLP Processing</button>
+        <div id="nlp-result" class="result"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>7. Location Extraction Test</h2>
+        <input type="text" id="location-test-input" placeholder="Enter text containing locations">
+        <button id="test-location-extraction">Test Location Extraction</button>
+        <div id="location-extraction-result" class="result"></div>
+    </div>
+    
+    <script type="module">
+        // Import the necessary modules
+        import { extractLocationsWithRegex, extractSimpleLocations } from './nlp-utils.js';
+        
+        // DOM elements
+        const apiStatusResult = document.getElementById('api-status-result');
+        const mapboxTokenResult = document.getElementById('mapbox-token-result');
+        const mapInitResult = document.getElementById('map-init-result');
+        const geocodingResult = document.getElementById('geocoding-result');
+        const directionsResult = document.getElementById('directions-result');
+        const nlpResult = document.getElementById('nlp-result');
+        const locationExtractionResult = document.getElementById('location-extraction-result');
+        
+        // Utility functions
+        function logResult(element, message, isError = false) {
+            element.className = `result ${isError ? 'error' : 'success'}`;
+            element.textContent = message;
+        }
+        
+        function formatJSON(obj) {
+            return JSON.stringify(obj, null, 2);
+        }
+        
+        // 1. API Status Check
+        document.getElementById('check-api-status').addEventListener('click', async () => {
+            try {
+                apiStatusResult.className = 'result';
+                apiStatusResult.textContent = 'Checking API status...';
+                
+                const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
+                const response = await fetch(`${API_URL}/api/debug`);
+                
+                if (!response.ok) {
+                    throw new Error(`API returned ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                logResult(apiStatusResult, `API Status: OK\n\n${formatJSON(data)}`);
+            } catch (error) {
+                logResult(apiStatusResult, `Error checking API status: ${error.message}`, true);
+            }
+        });
+        
+        // 2. Mapbox Token Test
+        document.getElementById('test-mapbox-token').addEventListener('click', async () => {
+            try {
+                mapboxTokenResult.className = 'result';
+                mapboxTokenResult.textContent = 'Fetching Mapbox token...';
+                
+                const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
+                const response = await fetch(`${API_URL}/api/mapbox-token`);
+                
+                if (!response.ok) {
+                    throw new Error(`API returned ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.token) {
+                    throw new Error('No token received from server');
+                }
+                
+                // Test if the token starts with 'pk.'
+                if (!data.token.startsWith('pk.')) {
+                    logResult(mapboxTokenResult, `Warning: Token may not be valid (doesn't start with 'pk.')\nToken: ${data.token.substring(0, 10)}...`, true);
+                } else {
+                    logResult(mapboxTokenResult, `Token received successfully.\nToken prefix: ${data.token.substring(0, 10)}...`);
+                }
+            } catch (error) {
+                logResult(mapboxTokenResult, `Error testing Mapbox token: ${error.message}`, true);
+            }
+        });
+        
+        // 3. Map Initialization Test
+        document.getElementById('init-test-map').addEventListener('click', async () => {
+            try {
+                mapInitResult.className = 'result';
+                mapInitResult.textContent = 'Initializing test map...';
+                
+                // Fetch the Mapbox token
+                const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
+                const response = await fetch(`${API_URL}/api/mapbox-token`);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to get Mapbox token: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                const mapboxToken = data.token;
+                
+                if (!mapboxToken) {
+                    throw new Error('No Mapbox token received from server');
+                }
+                
+                // Initialize the map
+                mapboxgl.accessToken = mapboxToken;
+                const map = new mapboxgl.Map({
+                    container: 'test-map',
+                    style: 'mapbox://styles/mapbox/streets-v11',
+                    center: [-98.5795, 39.8283], // Center of the US
+                    zoom: 2
+                });
+                
+                // Wait for the map to load
+                map.on('load', () => {
+                    // Add a marker to verify the map is working
+                    new mapboxgl.Marker()
+                        .setLngLat([-98.5795, 39.8283])
+                        .addTo(map);
+                    
+                    logResult(mapInitResult, 'Map initialized successfully!');
+                });
+                
+                // Handle load error
+                map.on('error', (e) => {
+                    logResult(mapInitResult, `Map initialization error: ${e.error ? e.error.message : 'Unknown error'}`, true);
+                });
+            } catch (error) {
+                logResult(mapInitResult, `Error initializing map: ${error.message}`, true);
+            }
+        });
+        
+        // 4. Geocoding Test
+        document.getElementById('test-geocoding').addEventListener('click', async () => {
+            try {
+                const locationName = document.getElementById('geocode-input').value.trim() || 'New York';
+                geocodingResult.className = 'result';
+                geocodingResult.textContent = `Geocoding "${locationName}"...`;
+                
+                // Get the Mapbox token from the server
+                const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
+                const tokenResponse = await fetch(`${API_URL}/api/mapbox-token`);
+                
+                if (!tokenResponse.ok) {
+                    throw new Error('Failed to get Mapbox token');
+                }
+                
+                const tokenData = await tokenResponse.json();
+                
+                if (!tokenData.token) {
+                    throw new Error('No Mapbox token received');
+                }
+                
+                // Construct the geocoding API URL
+                const geocodingUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(locationName)}.json?access_token=${tokenData.token}`;
+                
+                const response = await fetch(geocodingUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Geocoding API returned ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.features || data.features.length === 0) {
+                    throw new Error(`No geocoding results for "${locationName}"`);
+                }
+                
+                // Get the first result
+                const firstResult = data.features[0];
+                logResult(geocodingResult, `Geocoding successful!\n\nCoordinates: ${firstResult.center}\nPlace: ${firstResult.place_name}\n\nAll results: ${data.features.length}`);
+            } catch (error) {
+                logResult(geocodingResult, `Error geocoding location: ${error.message}`, true);
+            }
+        });
+        
+        // 5. Directions API Test
+        document.getElementById('test-directions').addEventListener('click', async () => {
+            try {
+                directionsResult.className = 'result';
+                directionsResult.textContent = 'Fetching directions between New York and Boston...';
+                
+                // Use our existing API endpoint for directions
+                const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
+                const url = `${API_URL}/api/directions?coordinates=-74.006,40.7128;-71.0589,42.3601&profile=mapbox/driving`;
+                
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`Directions API returned ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.routes || data.routes.length === 0) {
+                    throw new Error('No routes found');
+                }
+                
+                // Get the first route
+                const route = data.routes[0];
+                logResult(directionsResult, `Directions API successful!\n\nDistance: ${(route.distance / 1609).toFixed(1)} miles\nDuration: ${(route.duration / 60).toFixed(0)} minutes\n\nRoute has ${route.geometry.coordinates.length} coordinate points`);
+            } catch (error) {
+                logResult(directionsResult, `Error fetching directions: ${error.message}`, true);
+            }
+        });
+        
+        // 6. NLP Test
+        document.getElementById('test-nlp').addEventListener('click', async () => {
+            try {
+                const inputText = document.getElementById('nlp-test-input').value.trim() || 'Show me a route from New York to Boston';
+                nlpResult.className = 'result';
+                nlpResult.textContent = `Processing: "${inputText}"...`;
+                
+                // Prepare the prompt for the language model
+                const prompt = {
+                    contents: [{
+                        parts: [{
+                            text: `
+                            Extract structured information from the following text and respond with ONLY a JSON object. 
+                            Do not include any additional text, explanation, or markdown formatting.
+                            
+                            Input text: "${inputText}"
+                            
+                            Return a JSON object with the following structure:
+                            {
+                                "intentType": "locations" or "route" (locations for just displaying points, route for connecting them),
+                                "locations": [{"name": "Location Name", "timeContext": "historical period or empty string"}],
+                                "travelMode": "driving", "walking", "cycling", or "flying" (only required for route intent),
+                                "preferences": ["preference1", "preference2"] (e.g., "avoid highways", "scenic route", "historical sites"),
+                                "visualizationType": "default", "historical", "satellite", "terrain", etc.,
+                                "message": "A description of what was found and what will be displayed",
+                                "suggestedSequence": ["Location1", "Location2"] (only for route intent, suggested visit order)
+                            }
+                            `
+                        }]
+                    }]
+                };
+                
+                // Call the API
+                const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
+                const response = await fetch(`${API_URL}/api/gemini`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(prompt)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API returned ${response.status}: ${response.statusText}`);
+                }
+                
+                const responseData = await response.json();
+                logResult(nlpResult, `NLP processing successful!\n\nResponse: ${formatJSON(responseData)}`);
+            } catch (error) {
+                logResult(nlpResult, `Error in NLP processing: ${error.message}`, true);
+                
+                // Fall back to direct location extraction
+                try {
+                    const inputText = document.getElementById('nlp-test-input').value.trim();
+                    if (inputText) {
+                        const extractedLocations = extractLocationsWithRegex(inputText);
+                        const simpleLocations = extractedLocations.length > 0 ? extractedLocations : extractSimpleLocations(inputText);
+                        
+                        if (simpleLocations.length > 0) {
+                            logResult(nlpResult, `API failed but extracted locations: ${simpleLocations.join(', ')}`, true);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error in fallback extraction:', e);
+                }
+            }
+        });
+        
+        // 7. Location Extraction Test
+        document.getElementById('test-location-extraction').addEventListener('click', async () => {
+            try {
+                const inputText = document.getElementById('location-test-input').value.trim() || 'I want to visit New York and London next summer';
+                locationExtractionResult.className = 'result';
+                locationExtractionResult.textContent = 'Extracting locations...';
+                
+                // Use both extraction methods
+                const regexLocations = extractLocationsWithRegex(inputText);
+                const simpleLocations = extractSimpleLocations(inputText);
+                
+                // Function to extract locations directly (like the one in app-init.js)
+                function extractLocationsDirectly(text) {
+                    if (!text) return [];
+                    
+                    const commonLocations = [
+                        "New York", "Los Angeles", "Chicago", "Houston", "Philadelphia", 
+                        "San Francisco", "Seattle", "Denver", "Boston", "Atlanta", "Miami",
+                        "London", "Paris", "Tokyo", "Berlin", "Rome", "Madrid", "Sydney",
+                        "Eiffel Tower", "Statue of Liberty", "Grand Canyon"
+                    ];
+                    
+                    const foundLocations = [];
+                    const lowerText = text.toLowerCase();
+                    
+                    for (const location of commonLocations) {
+                        if (lowerText.includes(location.toLowerCase())) {
+                            foundLocations.push(location);
+                        }
+                    }
+                    
+                    return foundLocations;
+                }
+                
+                const directLocations = extractLocationsDirectly(inputText);
+                
+                logResult(locationExtractionResult, 
+                    `Location extraction results:\n\n` +
+                    `Regex method (nlp-utils.js): ${regexLocations.length > 0 ? regexLocations.join(', ') : 'None found'}\n\n` +
+                    `Simple method (nlp-utils.js): ${simpleLocations.length > 0 ? simpleLocations.join(', ') : 'None found'}\n\n` +
+                    `Direct method (app-init.js): ${directLocations.length > 0 ? directLocations.join(', ') : 'None found'}`
+                );
+            } catch (error) {
+                logResult(locationExtractionResult, `Error extracting locations: ${error.message}`, true);
+            }
+        });
+    </script>
+</body>
+</html> 

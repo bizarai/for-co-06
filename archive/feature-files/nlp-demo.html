@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enhanced NLP with Visualization Demo</title>
+  <script src='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js'></script>
+  <link href='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css' rel='stylesheet' />
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      background-color: #3c8dbc;
+      color: white;
+      padding: 20px 0;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+    
+    .map-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    @media (min-width: 992px) {
+      .map-container {
+        flex-direction: row;
+      }
+      
+      .controls {
+        flex: 1;
+      }
+      
+      #map {
+        flex: 2;
+      }
+    }
+    
+    .controls {
+      background-color: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    #map {
+      height: 500px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .input-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 16px;
+      font-family: inherit;
+    }
+    
+    textarea {
+      min-height: 100px;
+    }
+    
+    button {
+      background-color: #3c8dbc;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    
+    button:hover {
+      background-color: #367fa9;
+    }
+    
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f9f9f9;
+      border-radius: 5px;
+      border-left: 5px solid #3c8dbc;
+    }
+    
+    .locations-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    
+    .location-chip {
+      background-color: #e1e1e1;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 14px;
+      display: inline-block;
+    }
+    
+    .examples-container {
+      margin-top: 20px;
+    }
+    
+    .example-query {
+      padding: 10px;
+      margin-bottom: 5px;
+      background-color: #f0f0f0;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+    }
+    
+    .example-query:hover {
+      background-color: #e0e0e0;
+    }
+    
+    .loading-indicator {
+      display: none;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top: 4px solid #3c8dbc;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>Enhanced NLP with Visualization Demo</h1>
+    </div>
+  </header>
+  
+  <div class="container">
+    <div class="map-container">
+      <div class="controls">
+        <form id="nlp-form">
+          <div class="input-group">
+            <label for="nlp-input">Enter your query:</label>
+            <textarea id="nlp-input" placeholder="e.g., 'Route from New York to Los Angeles' or 'Show me major cities in Europe'"></textarea>
+          </div>
+          
+          <div class="input-group">
+            <label for="visualization-type">Visualization Type:</label>
+            <select id="visualization-type">
+              <option value="default">Default</option>
+              <option value="heatmap">Heatmap</option>
+              <option value="timeline">Timeline</option>
+              <option value="cluster">Cluster</option>
+              <option value="animation">Animation</option>
+            </select>
+          </div>
+          
+          <button type="submit">Process</button>
+        </form>
+        
+        <div id="loading-indicator" class="loading-indicator">
+          <div class="spinner"></div>
+          <p>Processing your request...</p>
+        </div>
+        
+        <div class="result">
+          <h3>Result:</h3>
+          <p id="result-message">Enter a query to see results.</p>
+          <div id="locations-container" class="locations-container"></div>
+        </div>
+        
+        <div class="examples-container">
+          <h3>Example Queries:</h3>
+          <div id="examples-container"></div>
+        </div>
+      </div>
+      
+      <div id="map"></div>
+    </div>
+  </div>
+  
+  <script type="module" src="integration-example.js"></script>
+</body>
+</html> 

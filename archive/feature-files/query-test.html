@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Query Test Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    .test-section {
+      margin-bottom: 30px;
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 5px;
+    }
+    .test-button {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 3px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    .test-button:hover {
+      background: #2980b9;
+    }
+    #result-container {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 5px;
+      min-height: 200px;
+    }
+    .result-header {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .test-queries {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .debug-section {
+      margin-top: 30px;
+      border-top: 1px solid #ddd;
+      padding-top: 15px;
+    }
+    #debug-info {
+      font-family: monospace;
+      white-space: pre-wrap;
+      background: #f1f1f1;
+      padding: 10px;
+      border-radius: 5px;
+      overflow-y: auto;
+      max-height: 300px;
+    }
+    .clear-button {
+      background: #e74c3c;
+      color: white;
+    }
+    .clear-button:hover {
+      background: #c0392b;
+    }
+  </style>
+</head>
+<body>
+  <h1>Query Test Page</h1>
+  
+  <div class="test-section">
+    <h2>Test Informational Queries</h2>
+    <p>This page tests queries about sites, places, and locations to ensure they're properly handled.</p>
+    
+    <div>
+      <h3>Test Query:</h3>
+      <input type="text" id="query-input" style="width: 80%; padding: 8px;" 
+             placeholder="Enter a query like 'Historical sites in ancient Rome'">
+      <button id="test-button" class="test-button">Test Query</button>
+    </div>
+    
+    <h3>Quick Test Queries:</h3>
+    <div class="test-queries">
+      <button class="test-button" data-query="Historical sites in ancient Rome">Historical sites in ancient Rome</button>
+      <button class="test-button" data-query="Places to visit in Paris">Places to visit in Paris</button>
+      <button class="test-button" data-query="Tourist attractions in London">Tourist attractions in London</button>
+      <button class="test-button" data-query="Things to do in New York">Things to do in New York</button>
+      <button class="test-button" data-query="Explore Tokyo">Explore Tokyo</button>
+    </div>
+    
+    <h3>Results:</h3>
+    <div id="result-container">
+      <div class="result-header">Results will appear here...</div>
+      <div id="nlp-result"></div>
+    </div>
+    
+    <div class="debug-section">
+      <h3>Debug Information:</h3>
+      <button id="clear-debug" class="test-button clear-button">Clear Debug</button>
+      <div id="debug-info">Debug information will appear here...</div>
+    </div>
+  </div>
+  
+  <script type="module">
+    import { processNaturalLanguageInput, detectInformationalQuery } from './enhanced-nlp-improved.js';
+    
+    const queryInput = document.getElementById('query-input');
+    const testButton = document.getElementById('test-button');
+    const nlpResult = document.getElementById('nlp-result');
+    const debugInfo = document.getElementById('debug-info');
+    const clearDebugButton = document.getElementById('clear-debug');
+    
+    // Set up event listener for the test button
+    testButton.addEventListener('click', async () => {
+      const query = queryInput.value.trim();
+      if (!query) {
+        alert('Please enter a query to test');
+        return;
+      }
+      
+      await testQuery(query);
+    });
+    
+    // Set up event listeners for quick test buttons
+    document.querySelectorAll('.test-queries .test-button').forEach(button => {
+      button.addEventListener('click', async () => {
+        const query = button.getAttribute('data-query');
+        queryInput.value = query;
+        await testQuery(query);
+      });
+    });
+    
+    // Clear debug information
+    clearDebugButton.addEventListener('click', () => {
+      debugInfo.textContent = 'Debug cleared.';
+    });
+    
+    // Test a specific query
+    async function testQuery(query) {
+      try {
+        // Log to debug
+        debugInfo.textContent += `\n\n[${new Date().toISOString()}] Testing query: "${query}"`;
+        
+        // First test the informational query detection
+        const informationalLocation = detectInformationalQuery(query);
+        debugInfo.textContent += `\nInformational query detection: ${informationalLocation ? `✅ Matched "${informationalLocation}"` : '❌ Not matched'}`;
+        
+        // Then test the full NLP processing
+        const result = await processNaturalLanguageInput(query);
+        
+        // Display the result
+        displayResult(result);
+        
+      } catch (error) {
+        console.error('Error testing query:', error);
+        debugInfo.textContent += `\nERROR: ${error.message}`;
+        nlpResult.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
+      }
+    }
+    
+    // Display the NLP result
+    function displayResult(result) {
+      // Create a formatted HTML representation of the result
+      const resultHtml = `
+        <div style="margin-bottom: 10px;">
+          <strong>Intent Type:</strong> <span style="color: ${result.intentType === 'route' ? 'blue' : 'green'}">${result.intentType}</span>
+        </div>
+        <div style="margin-bottom: 10px;">
+          <strong>Locations:</strong>
+          <ul>
+            ${result.locations.map(loc => 
+              `<li>${loc.name}${loc.timeContext ? ` (${loc.timeContext})` : ''}</li>`
+            ).join('')}
+          </ul>
+        </div>
+        <div style="margin-bottom: 10px;">
+          <strong>Visualization Type:</strong> ${result.visualizationType}
+        </div>
+        <div style="margin-bottom: 10px;">
+          <strong>Travel Mode:</strong> ${result.travelMode}
+        </div>
+        <div style="margin-bottom: 10px;">
+          <strong>Message:</strong> ${result.message}
+        </div>
+        <div>
+          <strong>Suggested Sequence:</strong> ${result.suggestedSequence.join(' → ')}
+        </div>
+      `;
+      
+      nlpResult.innerHTML = resultHtml;
+      
+      // Log the result to debug
+      debugInfo.textContent += `\nNLP Result: ${JSON.stringify(result, null, 2)}`;
+      debugInfo.scrollTop = debugInfo.scrollHeight; // Auto-scroll to bottom
+    }
+  </script>
+</body>
+</html> 

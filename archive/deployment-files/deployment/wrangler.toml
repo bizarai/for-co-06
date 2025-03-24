@@ -1,0 +1,5 @@
+name = "for-co-04"
+compatibility_date = "2023-09-11"
+
+[site]
+bucket = "deployment"

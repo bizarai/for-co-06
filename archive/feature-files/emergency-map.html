@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Map Display</title>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; z-index: 1; }
+        .overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .map-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.9);
+            padding: 20px;
+            border-radius: 4px;
+            text-align: center;
+            z-index: 2;
+        }
+    </style>
+</head>
+<body>
+    <div id="map">
+        <div class="map-msg">Map is loading...</div>
+    </div>
+    <div class="overlay">
+        <div id="status">Initializing map...</div>
+        <button id="osm-btn" style="margin-top: 10px;">Try OpenStreetMap</button>
+        <button id="leaflet-btn" style="margin-top: 10px;">Try Leaflet</button>
+    </div>
+    
+    <script>
+        const status = document.getElementById('status');
+        const mapMsg = document.querySelector('.map-msg');
+        const osmBtn = document.getElementById('osm-btn');
+        const leafletBtn = document.getElementById('leaflet-btn');
+        
+        // Use Mapbox by default
+        initMapbox();
+        
+        function initMapbox() {
+            try {
+                // Clear existing map
+                document.getElementById('map').innerHTML = '<div class="map-msg">Map is loading...</div>';
+                
+                // Set token
+                mapboxgl.accessToken = 'pk.eyJ1IjoidHVmZmNyZWF0ZSIsImEiOiJjbHU5YXJxeXQwN2J6MmpsMDRvMGJ0dGhsIn0.neijgnnqzQ0aCHzOPrE_MQ';
+                
+                // Initialize Mapbox map with minimal options
+                const map = new mapboxgl.Map({
+                    container: 'map',
+                    style: {
+                        version: 8,
+                        sources: {
+                            'osm-tiles': {
+                                type: 'raster',
+                                tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                                tileSize: 256
+                            }
+                        },
+                        layers: [{
+                            id: 'osm-layer',
+                            type: 'raster',
+                            source: 'osm-tiles',
+                            minzoom: 0,
+                            maxzoom: 22
+                        }]
+                    },
+                    center: [-122.42136449, 37.80176523],
+                    zoom: 8
+                });
+                
+                // Add a navigation control
+                map.addControl(new mapboxgl.NavigationControl());
+                
+                // Add a marker
+                map.on('load', function() {
+                    new mapboxgl.Marker({color: "#FF0000"})
+                        .setLngLat([-122.42136449, 37.80176523])
+                        .addTo(map);
+                    
+                    // Update status and remove loading message
+                    status.textContent = "Mapbox map loaded successfully!";
+                    mapMsg.style.display = 'none';
+                    
+                    // Log map object
+                    console.log("Map loaded:", map);
+                });
+                
+                // Error handling
+                map.on('error', function(e) {
+                    status.textContent = `Mapbox error: ${e.error ? e.error.message : 'Unknown error'}`;
+                    console.error("Mapbox error:", e);
+                });
+            } catch (e) {
+                status.textContent = `Mapbox initialization error: ${e.message}`;
+                console.error("Mapbox initialization error:", e);
+            }
+        }
+        
+        // OpenStreetMap button handler - use raw OpenStreetMap tiles
+        osmBtn.addEventListener('click', function() {
+            document.getElementById('map').innerHTML = '<div class="map-msg">Loading OpenStreetMap...</div>';
+            
+            // Create an img element as a simple test
+            const osmImg = document.createElement('img');
+            osmImg.src = 'https://a.tile.openstreetmap.org/8/40/98.png'; // z=8, x=40, y=98 (San Francisco area)
+            osmImg.style.position = 'absolute';
+            osmImg.style.left = '50%';
+            osmImg.style.top = '50%';
+            osmImg.style.transform = 'translate(-50%, -50%)';
+            osmImg.style.border = '2px solid red';
+            
+            osmImg.onload = function() {
+                status.textContent = "OpenStreetMap tile loaded successfully!";
+                mapMsg.style.display = 'none';
+            };
+            
+            osmImg.onerror = function() {
+                status.textContent = "Failed to load OpenStreetMap tile!";
+            };
+            
+            document.getElementById('map').appendChild(osmImg);
+        });
+        
+        // Leaflet button handler - as a fallback option
+        leafletBtn.addEventListener('click', function() {
+            // Load Leaflet dynamically
+            status.textContent = "Loading Leaflet...";
+            
+            // Load Leaflet CSS
+            const leafletCSS = document.createElement('link');
+            leafletCSS.rel = 'stylesheet';
+            leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+            document.head.appendChild(leafletCSS);
+            
+            // Load Leaflet JS
+            const leafletScript = document.createElement('script');
+            leafletScript.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+            
+            leafletScript.onload = function() {
+                try {
+                    // Clear and prepare the map container
+                    document.getElementById('map').innerHTML = '';
+                    
+                    // Initialize the Leaflet map
+                    const leafletMap = L.map('map').setView([37.80176523, -122.42136449], 8);
+                    
+                    // Add OpenStreetMap tile layer
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    }).addTo(leafletMap);
+                    
+                    // Add a marker
+                    L.marker([37.80176523, -122.42136449])
+                        .addTo(leafletMap)
+                        .bindPopup('San Francisco')
+                        .openPopup();
+                    
+                    status.textContent = "Leaflet map loaded successfully!";
+                    
+                } catch (e) {
+                    status.textContent = `Leaflet initialization error: ${e.message}`;
+                    console.error("Leaflet error:", e);
+                }
+            };
+            
+            leafletScript.onerror = function() {
+                status.textContent = "Failed to load Leaflet library!";
+            };
+            
+            document.body.appendChild(leafletScript);
+        });
+    </script>
+</body>
+</html> 

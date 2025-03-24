@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic Mapbox Map</title>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <style>
+        body { margin: 0; padding: 20px; font-family: sans-serif; }
+        #map { 
+            width: 100%;
+            height: 500px;
+            border: 2px solid red; /* RED border to make it obvious */
+            position: relative;
+            z-index: 1;
+        }
+        #log { 
+            margin-top: 20px; 
+            padding: 10px; 
+            background: #f0f0f0; 
+            font-family: monospace; 
+            white-space: pre-wrap; 
+            height: 200px; 
+            overflow: auto; 
+            border: 1px solid #ccc;
+        }
+        button {
+            margin: 5px;
+            padding: 5px 10px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #3367d6;
+        }
+        h1 { color: #333; }
+        .timestamp { color: #999; font-size: 0.8em; }
+    </style>
+</head>
+<body>
+    <h1>Basic Mapbox Map Test</h1>
+    <p>This page tests a minimal Mapbox map setup with detailed diagnostics.</p>
+    
+    <div id="map">
+        <div style="padding: 20px; text-align: center;">Map loading...</div>
+    </div>
+    
+    <div>
+        <button id="check-btn">Check Map Status</button>
+        <button id="basic-btn">Try Basic Style</button>
+        <button id="reinit-btn">Reinitialize Map</button>
+        <button id="force-resize-btn">Force Resize</button>
+    </div>
+    
+    <div id="log">Starting log...</div>
+    
+    <script>
+        // Simple log function with timestamps
+        function log(message) {
+            console.log(message);
+            const time = new Date().toLocaleTimeString();
+            const logEl = document.getElementById('log');
+            logEl.innerHTML += `\n<span class="timestamp">[${time}]</span> ${message}`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        // Log initial state
+        log(`Page loaded at ${new Date().toISOString()}`);
+        log(`Mapbox GL JS available: ${typeof mapboxgl !== 'undefined'}`);
+        if (typeof mapboxgl !== 'undefined') {
+            log(`Mapbox GL JS version: ${mapboxgl.version}`);
+        }
+        
+        let map = null;
+        
+        // Initialize map with direct token
+        try {
+            log('Setting up map with direct token...');
+            
+            // Directly set the Mapbox token
+            mapboxgl.accessToken = 'pk.eyJ1IjoidHVmZmNyZWF0ZSIsImEiOiJjbHU5YXJxeXQwN2J6MmpsMDRvMGJ0dGhsIn0.neijgnnqzQ0aCHzOPrE_MQ';
+            log('Token set');
+            
+            // Get the map container
+            const mapContainer = document.getElementById('map');
+            
+            // Log the container details
+            log(`Map container size: ${mapContainer.offsetWidth}x${mapContainer.offsetHeight}`);
+            log(`Map container style: ${window.getComputedStyle(mapContainer).cssText.substring(0, 100)}...`);
+            
+            // Clear the container
+            mapContainer.innerHTML = '';
+            
+            // Create the map
+            log('Creating map instance...');
+            map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/streets-v11',
+                center: [-98.5795, 39.8283], // Center of US
+                zoom: 3,
+                attributionControl: true,
+                preserveDrawingBuffer: true, // Helps with rendering in some cases
+                failIfMajorPerformanceCaveat: false // Try to render even with performance issues
+            });
+            
+            // Add navigation control
+            map.addControl(new mapboxgl.NavigationControl());
+            log('Navigation control added');
+            
+            // Map events
+            map.on('load', () => {
+                log('Map loaded successfully!');
+                
+                // Add a marker
+                new mapboxgl.Marker()
+                    .setLngLat([-98.5795, 39.8283])
+                    .addTo(map);
+                    
+                log('Marker added to map');
+                
+                // Force a resize to ensure rendering
+                map.resize();
+                log('Forced resize after load');
+                
+                // Check canvas status
+                const canvas = map.getCanvas();
+                log(`Canvas dimensions: ${canvas.width}x${canvas.height}`);
+                log(`Canvas style: ${window.getComputedStyle(canvas).cssText.substring(0, 100)}...`);
+            });
+            
+            map.on('error', (e) => {
+                log(`Map error: ${e.error ? e.error.message : 'Unknown error'}`);
+                console.error('Map error:', e);
+            });
+            
+            // Check for immediate render issues
+            setTimeout(() => {
+                if (map && !map.loaded()) {
+                    log('WARNING: Map not loaded after 3 seconds');
+                    
+                    // Force a resize
+                    try {
+                        map.resize();
+                        log('Forced resize after timeout');
+                    } catch (e) {
+                        log(`Error during forced resize: ${e.message}`);
+                    }
+                }
+            }, 3000);
+        } catch (error) {
+            log(`ERROR: ${error.message}`);
+            console.error('Map initialization error:', error);
+        }
+        
+        // Set up button handlers
+        document.getElementById('check-btn').addEventListener('click', () => {
+            try {
+                log('Checking map status...');
+                
+                if (!map) {
+                    log('ERROR: Map instance is null');
+                    return;
+                }
+                
+                log(`Map loaded: ${map.loaded()}`);
+                log(`Map style loaded: ${map.isStyleLoaded()}`);
+                
+                const canvas = map.getCanvas();
+                log(`Canvas dimensions: ${canvas.width}x${canvas.height}`);
+                log(`Canvas style: ${window.getComputedStyle(canvas).display}, ${window.getComputedStyle(canvas).visibility}`);
+                
+                // Log all map sources
+                const sources = map.getStyle().sources;
+                log(`Map has ${Object.keys(sources).length} sources: ${Object.keys(sources).join(', ')}`);
+                
+                // Log all map layers
+                const layers = map.getStyle().layers;
+                log(`Map has ${layers.length} layers`);
+            } catch (e) {
+                log(`Error checking map: ${e.message}`);
+            }
+        });
+        
+        document.getElementById('basic-btn').addEventListener('click', () => {
+            try {
+                log('Setting basic style...');
+                
+                const basicStyle = {
+                    version: 8,
+                    sources: {
+                        'simple-source': {
+                            type: 'geojson',
+                            data: {
+                                type: 'FeatureCollection',
+                                features: [
+                                    {
+                                        type: 'Feature',
+                                        geometry: {
+                                            type: 'Point',
+                                            coordinates: [-98.5795, 39.8283]
+                                        },
+                                        properties: {
+                                            title: 'Center of US'
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    layers: [
+                        {
+                            id: 'background',
+                            type: 'background',
+                            paint: {'background-color': '#f0f0f0'}
+                        },
+                        {
+                            id: 'point',
+                            type: 'circle',
+                            source: 'simple-source',
+                            paint: {
+                                'circle-radius': 10,
+                                'circle-color': '#3887be'
+                            }
+                        }
+                    ]
+                };
+                
+                map.setStyle(basicStyle);
+                log('Basic style applied');
+            } catch (e) {
+                log(`Error setting basic style: ${e.message}`);
+            }
+        });
+        
+        document.getElementById('reinit-btn').addEventListener('click', () => {
+            try {
+                log('Reinitializing map...');
+                
+                // If there's an existing map, remove it
+                if (map) {
+                    map.remove();
+                    log('Removed existing map');
+                }
+                
+                // Get the map container and clear it
+                const mapContainer = document.getElementById('map');
+                mapContainer.innerHTML = '';
+                
+                // Create a new map
+                map = new mapboxgl.Map({
+                    container: 'map',
+                    style: 'mapbox://styles/mapbox/light-v11', // Try a different style
+                    center: [-98.5795, 39.8283],
+                    zoom: 3
+                });
+                
+                // Add navigation control
+                map.addControl(new mapboxgl.NavigationControl());
+                
+                // Set up map events
+                map.on('load', () => {
+                    log('New map loaded successfully!');
+                    
+                    // Add a marker
+                    new mapboxgl.Marker({color: '#ff0000'})
+                        .setLngLat([-98.5795, 39.8283])
+                        .addTo(map);
+                        
+                    log('Red marker added to new map');
+                });
+                
+                map.on('error', (e) => {
+                    log(`New map error: ${e.error ? e.error.message : 'Unknown error'}`);
+                });
+            } catch (e) {
+                log(`Error reinitializing map: ${e.message}`);
+            }
+        });
+        
+        document.getElementById('force-resize-btn').addEventListener('click', () => {
+            try {
+                if (!map) {
+                    log('Cannot resize: no map instance');
+                    return;
+                }
+                
+                log('Forcing map resize...');
+                
+                // Try to force the map to redraw
+                map.resize();
+                
+                // Check map status
+                log(`After resize - Map loaded: ${map.loaded()}`);
+                
+                const canvas = map.getCanvas();
+                log(`After resize - Canvas dimensions: ${canvas.width}x${canvas.height}`);
+            } catch (e) {
+                log(`Error during forced resize: ${e.message}`);
+            }
+        });
+    </script>
+</body>
+</html> 

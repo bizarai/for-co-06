@@ -1,88 +1,92 @@
-# Route Visualization App
+# Mapping Application with NLP-based Route Visualization
 
-This is a deployment of the route visualization application that uses Mapbox for maps and route visualization.
+This repository contains a mapping application with NLP-based route visualization optimized for performance.
 
-## Live Demo
-Visit the live deployment at: [Cloudflare Pages](https://for-co-06.pages.dev)
+## Repository Structure
 
-## Setup
+- `main/`: Main application files for running locally (http://localhost:3000)
+  - Original implementation of the mapping application
+  - Standard route visualization performance
+  - Sequential processing of NLP queries and map operations
+  - Focused on core mapping functionality
+  - Includes API functions in the `functions/api/` directory
 
-1. Install dependencies:
+- `comparison/`: Optimized comparison version (http://localhost:3000/comparison/)
+  - Enhanced implementation with significant performance improvements
+  - Parallel processing of NLP queries and map style updates
+  - Advanced geocoding with caching and optimized location matching
+  - Improved error handling and fallback mechanisms
+  - Contains additional features like sharing functionality
+  - Optimized map style and source management
+
+- `comparison-deploy/`: Files for CloudFlare Pages deployment
+  - Configured for direct deployment to the "for-co-04" project
+  - Includes necessary API functions as Cloudflare Functions
+  - Ready-to-deploy optimized version
+
+- `readonly/`: Documentation and reference files (read-only)
+  - Contains UI improvement suggestions and technical specifications
+
+- `archive/`: Files not actively used in the current versions
+  - `deployment-files/`: Files from previous deployment attempts
+  - `feature-files/`: Experimental features not applied in current versions
+  - `documentation-files/`: Additional documentation
+  - `original-js/`: Original JavaScript files
+
+## Performance Improvements in Comparison Version
+
+The `comparison/` version includes several key optimizations:
+
+1. **Parallel Processing**: Executes NLP query processing concurrently with map style updates
+2. **Geocoding Cache**: Implements caching to avoid redundant geocoding requests
+3. **Optimized Map Management**: Better handling of map sources and style updates
+4. **Enhanced Error Handling**: Robust timeout and fallback mechanisms
+5. **Performance Metrics**: Detailed timing logs for performance monitoring
+
+## Feature Differences
+
+| Feature | Main Version | Comparison Version |
+|---------|-------------|-------------------|
+| Route Visualization | Standard | Optimized |
+| Processing | Sequential | Parallel |
+| Share Functionality | No | Yes |
+| Geocoding | Basic | Enhanced with cache |
+| Error Handling | Basic | Advanced with fallbacks |
+| Performance Metrics | No | Yes |
+
+## Environment Configuration
+
+The application requires the following environment variables, which should be set in a `.env` file in the root directory:
+
+```
+# Mapbox API token (required)
+MAPBOX_TOKEN=your_mapbox_token
+
+# Google API key for Gemini API (required)
+GOOGLE_API_KEY=your_google_api_key
+GEMINI_API_KEY=your_google_api_key  # Duplicate for Cloudflare compatibility
+
+# Optional settings
+USE_MOCK_DATA=false  # Set to 'true' to use mock data instead of calling Gemini API
+PORT=3000  # Server port
+```
+
+These environment variables are used by both the main application and the comparison version.
+
+## Running the Application
+
+Start the application with:
+
 ```bash
+# Install dependencies first
 npm install
+
+# Run the server from the root directory
+node server.js
 ```
 
-2. Configure API keys:
-   - Get a Mapbox access token from [Mapbox](https://www.mapbox.com/)
-   - (Optional) Get a Gemini API key from [Google AI Studio](https://ai.google.dev/)
-   - Edit the `.env` file and add your API keys:
-     ```
-     MAPBOX_TOKEN=your_mapbox_token_here
-     GEMINI_API_KEY=your_gemini_api_key_here
-     ```
+Access the application at http://localhost:3000 and the comparison version at http://localhost:3000/comparison/
 
-3. Start the server:
-```bash
-npm start
-```
+## Deployed Version
 
-4. Open your browser and go to:
-```
-http://localhost:3000
-```
-
-## Features
-
-- Natural language processing for route requests
-- Multiple routing options (driving, walking, cycling)
-- Avoidance preferences (tolls, highways, ferries)
-- Visual map display with route visualization
-- Historical location visualization with time context
-- Support for complex text analysis (like the Gibbon example)
-
-## How to Use
-
-1. Enter a natural language query like:
-   - "Show me a route from London to Paris"
-   - "Walking path from Central Park to Times Square"
-   - "Cycling route from San Francisco to Oakland avoiding highways"
-   - Historical text: "Gibbon's canvas is large geographically and chronologically..."
-
-2. Click the "Search" button to process your request
-
-3. View the route or locations displayed on the map
-
-## Deployment
-
-### GitHub
-
-To push changes to GitHub:
-
-```bash
-git add .
-git commit -m "Your commit message"
-git push origin main
-```
-
-### Cloudflare Pages
-
-This project is configured for deployment on Cloudflare Pages:
-
-1. Install Wrangler CLI:
-```bash
-npm install -g wrangler
-```
-
-2. Login to Cloudflare:
-```bash
-wrangler login
-```
-
-3. Deploy to Cloudflare Pages:
-```bash
-wrangler pages publish . --project-name map-visualizer
-```
-
-4. Set environment variables in the Cloudflare dashboard:
-   - `MAPBOX_TOKEN`: Your Mapbox access token
-   - `GEMINI_API_KEY`: Your Gemini API key (optional) 
+The application is deployed to CloudFlare Pages at: https://for-co-04.pages.dev 

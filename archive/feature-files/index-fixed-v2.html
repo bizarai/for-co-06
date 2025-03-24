@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Map Visualization with NLP (Fixed v2)</title>
+    <!-- Mapbox GL JS CSS and JS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            padding: 20px 0;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        header h1 {
+            margin: 0;
+            color: #333;
+        }
+        
+        .info-box {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .examples-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .example {
+            background-color: #e9f0f8;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 14px;
+        }
+        
+        .example:hover {
+            background-color: #d0e3f7;
+        }
+        
+        .input-section {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        button {
+            padding: 10px 15px;
+            background-color: #4285F4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: #3367D6;
+        }
+        
+        .visualization-options {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .viz-options {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .viz-option {
+            padding: 8px 12px;
+            background-color: #f1f3f4;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 14px;
+        }
+        
+        .viz-option.selected {
+            background-color: #4285F4;
+            color: white;
+        }
+        
+        .viz-option:hover:not(.selected) {
+            background-color: #e8eaed;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* Map container */
+        .map-container {
+            position: relative;
+            height: 500px;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .map-loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4285F4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1.5s linear infinite;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* History section */
+        .history-section {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .history-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .history-items {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .history-query {
+            cursor: pointer;
+        }
+        
+        .history-delete {
+            background: none;
+            border: none;
+            color: #5f6368;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0 5px;
+        }
+        
+        /* Debug tools section */
+        .debug-section {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .debug-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .debug-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        #debug-info {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        /* Debug tools */
+        .debug-tools {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .debug-tools h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .debug-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .debug-result {
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        
+        .console-container {
+            display: none;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: #333;
+            color: #eee;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        
+        .console-output {
+            white-space: pre-wrap;
+        }
+        
+        /* Messages */
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .warning-message {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        /* Processing loading */
+        .loading-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .loading-text {
+            color: white;
+            margin-top: 15px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Enhanced Map Visualization with NLP</h1>
+            <p>Enter a natural language query to visualize locations and routes on the map.</p>
+        </header>
+        
+        <div class="info-box">
+            <strong>Try example queries like:</strong>
+            <div class="examples-container">
+                <span class="example" data-query="Show me Paris, London, and Rome">Show me Paris, London, and Rome</span>
+                <span class="example" data-query="Route from New York to Los Angeles">Route from New York to Los Angeles</span>
+                <span class="example" data-query="Historical sites in ancient Rome">Historical sites in ancient Rome</span>
+                <span class="example" data-query="Hiking trails near Seattle">Hiking trails near Seattle</span>
+            </div>
+        </div>
+        
+        <div class="input-section">
+            <div class="input-wrapper">
+                <input type="text" id="nlp-input" placeholder="Enter your query (e.g., Route from Paris to London)">
+                <button id="process-btn">Process</button>
+            </div>
+            <div class="visualization-options">
+                <div class="option-label">Visualization type:</div>
+                <div class="viz-options">
+                    <div class="viz-option selected" data-type="default">Default</div>
+                    <div class="viz-option" data-type="satellite">Satellite</div>
+                    <div class="viz-option" data-type="terrain">Terrain</div>
+                    <div class="viz-option" data-type="historical">Historical</div>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button id="clear-results-btn">Clear Results</button>
+                <button id="share-btn">Share</button>
+            </div>
+        </div>
+        
+        <div id="message-display"></div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+            <div id="map-loading" class="map-loading">
+                <div class="loading-spinner"></div>
+                <div>Loading map...</div>
+            </div>
+        </div>
+        
+        <div class="history-section">
+            <h3>Recent Searches</h3>
+            <div id="search-history" class="history-items">
+                <!-- History items will be dynamically added here -->
+            </div>
+        </div>
+        
+        <div class="debug-section">
+            <h3>Debug Controls</h3>
+            <div class="debug-controls">
+                <button id="direct-nlp-test">Direct NLP Test</button>
+                <button id="check-modules">Check Module Imports</button>
+                <button id="reinit-map">Reinitialize Map</button>
+                <button id="test-viz">Test Visualization</button>
+            </div>
+            <div id="debug-info">Debug information will appear here</div>
+        </div>
+        
+        <div class="debug-tools">
+            <h3>Debug Tools</h3>
+            <div class="debug-buttons">
+                <button id="verify-token">Verify Mapbox Token</button>
+                <button id="test-gemini-api">Test Gemini API</button>
+                <button id="toggle-console">Toggle Console</button>
+                <button id="clear-console">Clear Console</button>
+            </div>
+            <div id="map-check-result" class="debug-result"></div>
+            <div id="gemini-test-result" class="debug-result"></div>
+            <div class="console-container" id="console-container">
+                <div class="console-output" id="console-output"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="loading-container" id="loading-container" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Processing your request...</div>
+    </div>
+    
+    <script type="module">
+        // Import required modules
+        import { initializeMap, updateMapStyle } from './app-init.js';
+        import { processNaturalLanguageInput } from './enhanced-nlp-improved.js';
+        import { applyVisualization } from './visualization-integration.js';
+        
+        // Store map reference and search history globally
+        let map = null;
+        const searchHistory = [];
+        const MAX_HISTORY_ITEMS = 5;
+        
+        // Define global log function
+        window.log = function(...args) {
+            console.log(...args);
+            
+            // Log to debug console if available
+            const output = document.getElementById('console-output');
+            if (output) {
+                const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+                const message = args.map(arg => 
+                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
+                ).join(' ');
+                
+                output.innerHTML += `[${timestamp}] ${message}\n`;
+                output.scrollTop = output.scrollHeight;
+            }
+        };
+        
+        // Global error handler
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Global error:', message, source, lineno, colno, error);
+            log(`ERROR: ${message} (${source}:${lineno}:${colno})`);
+            return false; // Let the error propagate
+        };
+        
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', async () => {
+            log('DOM loaded, initializing application...');
+            
+            // Get references to DOM elements
+            const mapContainer = document.getElementById('map');
+            const mapLoading = document.getElementById('map-loading');
+            const messageDisplay = document.getElementById('message-display');
+            const searchInput = document.getElementById('nlp-input');
+            const processButton = document.getElementById('process-btn');
+            const clearButton = document.getElementById('clear-results-btn');
+            const shareButton = document.getElementById('share-btn');
+            const loadingContainer = document.getElementById('loading-container');
+            
+            // Initialize UI event handlers
+            setupDebugTools();
+            setupInputHandlers();
+            
+            // Initialize the map
+            try {
+                log('Starting map initialization...');
+                map = await initializeMap();
+                
+                if (mapLoading) {
+                    mapLoading.style.display = 'none';
+                }
+                
+                log('Map initialized successfully');
+            } catch (error) {
+                console.error('Map initialization error:', error);
+                log(`Map initialization failed: ${error.message}`);
+                
+                if (mapLoading) {
+                    mapLoading.innerHTML = `
+                        <div class="error-message">
+                            Error loading map: ${error.message}<br>
+                            <button id="retry-map">Retry</button>
+                        </div>
+                    `;
+                    
+                    document.getElementById('retry-map')?.addEventListener('click', () => {
+                        window.location.reload();
+                    });
+                }
+            }
+            
+            // Check URL parameters
+            checkUrlParameters();
+            
+            log('Application initialization complete');
+            
+            // Set up debug tools
+            function setupDebugTools() {
+                // Console toggle
+                document.getElementById('toggle-console')?.addEventListener('click', () => {
+                    const console = document.getElementById('console-container');
+                    if (console) {
+                        console.style.display = console.style.display === 'block' ? 'none' : 'block';
+                    }
+                });
+                
+                // Clear console
+                document.getElementById('clear-console')?.addEventListener('click', () => {
+                    const output = document.getElementById('console-output');
+                    if (output) {
+                        output.innerHTML = '';
+                    }
+                });
+                
+                // Verify Mapbox token
+                document.getElementById('verify-token')?.addEventListener('click', async () => {
+                    const result = document.getElementById('map-check-result');
+                    if (!result) return;
+                    
+                    result.innerHTML = '<div>Checking Mapbox token...</div>';
+                    
+                    try {
+                        const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
+                        const response = await fetch(`${API_URL}/api/mapbox-token`);
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.token) {
+                                result.innerHTML = '<div class="success-message">Mapbox token verified! The server is providing a valid token.</div>';
+                                log(`Token verified from server. Prefix: ${data.token.substring(0, 8)}...`);
+                            } else {
+                                result.innerHTML = '<div class="error-message">Token error: The server response did not contain a token</div>';
+                            }
+                        } else {
+                            const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+                            result.innerHTML = `<div class="error-message">Token error: ${error.message || response.statusText}</div>`;
+                        }
+                    } catch (error) {
+                        result.innerHTML = `<div class="error-message">Token verification error: ${error.message}</div>`;
+                    }
+                });
+                
+                // Test Gemini API
+                document.getElementById('test-gemini-api')?.addEventListener('click', async () => {
+                    const result = document.getElementById('gemini-test-result');
+                    if (!result) return;
+                    
+                    result.innerHTML = '<div>Testing Gemini API connection...</div>';
+                    
+                    try {
+                        const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
+                        const response = await fetch(`${API_URL}/api/debug`);
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            log('API debug response:', data);
+                            
+                            if (data.apis?.gemini?.mockMode === true) {
+                                result.innerHTML = '<div class="warning-message">Gemini API is in MOCK mode. It will return synthetic results.</div>';
+                            } else if (data.apis?.gemini?.configured) {
+                                result.innerHTML = '<div class="success-message">Gemini API is properly configured!</div>';
+                            } else {
+                                result.innerHTML = '<div class="error-message">Gemini API key is not configured on the server.</div>';
+                            }
+                        } else {
+                            const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+                            result.innerHTML = `<div class="error-message">API test error: ${error.message || response.statusText}</div>`;
+                        }
+                    } catch (error) {
+                        result.innerHTML = `<div class="error-message">API test error: ${error.message}</div>`;
+                        log('Gemini API test error:', error);
+                    }
+                });
+                
+                // Direct NLP test
+                document.getElementById('direct-nlp-test')?.addEventListener('click', async () => {
+                    log('Direct NLP test initiated');
+                    const testQuery = "Route from New York to Boston";
+                    log(`Testing query: "${testQuery}"`);
+                    
+                    try {
+                        const result = await processNaturalLanguageInput(testQuery);
+                        log(`NLP test result: ${JSON.stringify(result)}`);
+                    } catch (error) {
+                        log(`NLP test error: ${error.message}`);
+                    }
+                });
+                
+                // Check module imports
+                document.getElementById('check-modules')?.addEventListener('click', () => {
+                    log('Checking module imports...');
+                    
+                    if (typeof initializeMap === 'function') {
+                        log('✓ app-init.js module loaded correctly');
+                    } else {
+                        log('✗ app-init.js module not loaded properly');
+                    }
+                    
+                    if (typeof processNaturalLanguageInput === 'function') {
+                        log('✓ enhanced-nlp-improved.js module loaded correctly');
+                    } else {
+                        log('✗ enhanced-nlp-improved.js module not loaded properly');
+                    }
+                    
+                    if (typeof applyVisualization === 'function') {
+                        log('✓ visualization-integration.js module loaded correctly');
+                    } else {
+                        log('✗ visualization-integration.js module not loaded properly');
+                    }
+                });
+                
+                // Reinitialize map
+                document.getElementById('reinit-map')?.addEventListener('click', async () => {
+                    log('Reinitializing map...');
+                    try {
+                        if (mapLoading) {
+                            mapLoading.style.display = 'flex';
+                        }
+                        map = await initializeMap();
+                        if (mapLoading) {
+                            mapLoading.style.display = 'none';
+                        }
+                        log('Map reinitialized successfully');
+                    } catch (error) {
+                        log(`Map reinitialization error: ${error.message}`);
+                    }
+                });
+                
+                // Test visualization
+                document.getElementById('test-viz')?.addEventListener('click', async () => {
+                    log('Testing visualization...');
+                    
+                    if (!map) {
+                        log('Cannot test visualization: Map not initialized');
+                        return;
+                    }
+                    
+                    const testData = {
+                        intentType: "locations",
+                        locations: [
+                            { name: "Paris", coordinates: [2.3522, 48.8566] },
+                            { name: "London", coordinates: [-0.1278, 51.5074] },
+                            { name: "Rome", coordinates: [12.4964, 41.9028] }
+                        ],
+                        visualizationType: "both",
+                        travelMode: "driving",
+                        message: "Test visualization showing multiple locations"
+                    };
+                    
+                    try {
+                        await applyVisualization(testData, map);
+                        log('Test visualization completed');
+                    } catch (error) {
+                        log(`Test visualization error: ${error.message}`);
+                    }
+                });
+            }
+            
+            // Set up input handlers
+            function setupInputHandlers() {
+                // Process button click
+                processButton?.addEventListener('click', () => processQuery());
+                
+                // Enter key in input
+                searchInput?.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        processQuery();
+                    }
+                });
+                
+                // Example queries
+                document.querySelectorAll('.example').forEach(example => {
+                    example.addEventListener('click', () => {
+                        if (searchInput && processButton) {
+                            const query = example.getAttribute('data-query');
+                            searchInput.value = query;
+                            processQuery();
+                        }
+                    });
+                });
+                
+                // Clear results button
+                clearButton?.addEventListener('click', () => {
+                    if (searchInput) {
+                        searchInput.value = '';
+                    }
+                    
+                    if (messageDisplay) {
+                        messageDisplay.innerHTML = '';
+                    }
+                    
+                    clearMapData();
+                    log('Results cleared');
+                });
+                
+                // Share button
+                shareButton?.addEventListener('click', () => {
+                    if (!searchInput || searchInput.value.trim() === '') {
+                        alert('Please enter a query first');
+                        return;
+                    }
+                    
+                    const shareUrl = new URL(window.location.href);
+                    shareUrl.searchParams.set('query', searchInput.value);
+                    
+                    try {
+                        navigator.clipboard.writeText(shareUrl.toString())
+                            .then(() => {
+                                alert('Link copied to clipboard!');
+                            })
+                            .catch(() => {
+                                copyToClipboardFallback(shareUrl.toString());
+                            });
+                    } catch (error) {
+                        copyToClipboardFallback(shareUrl.toString());
+                    }
+                });
+                
+                // Visualization options
+                document.querySelectorAll('.viz-option').forEach(option => {
+                    option.addEventListener('click', () => {
+                        document.querySelector('.viz-option.selected')?.classList.remove('selected');
+                        option.classList.add('selected');
+                        
+                        if (!map) {
+                            log('Cannot update map style: Map not initialized');
+                            return;
+                        }
+                        
+                        const mapType = option.getAttribute('data-type');
+                        try {
+                            updateMapStyle(map, mapType);
+                            log(`Map style updated to: ${mapType}`);
+                        } catch (error) {
+                            log(`Error updating map style: ${error.message}`);
+                        }
+                    });
+                });
+            }
+            
+            // Helper function for clipboard fallback
+            function copyToClipboardFallback(text) {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('Link copied to clipboard!');
+            }
+            
+            // Check URL parameters for query
+            function checkUrlParameters() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const queryParam = urlParams.get('query');
+                
+                if (queryParam && searchInput) {
+                    searchInput.value = queryParam;
+                    setTimeout(() => processQuery(), 1000); // Delay to ensure map is loaded
+                }
+            }
+            
+            // Process the query
+            async function processQuery() {
+                if (!searchInput) return;
+                
+                const inputValue = searchInput.value.trim();
+                if (!inputValue) {
+                    if (messageDisplay) {
+                        messageDisplay.innerHTML = '<div class="error-message">Please enter a query</div>';
+                    }
+                    return;
+                }
+                
+                // Clear previous results
+                if (messageDisplay) {
+                    messageDisplay.innerHTML = '';
+                }
+                
+                // Show loading
+                if (loadingContainer) {
+                    loadingContainer.style.display = 'flex';
+                }
+                
+                if (mapContainer) {
+                    mapContainer.style.opacity = '0.7';
+                }
+                
+                try {
+                    log(`Processing query: "${inputValue}"`);
+                    
+                    // Process the input
+                    const result = await processNaturalLanguageInput(inputValue);
+                    log('NLP processing result:', JSON.stringify(result));
+                    
+                    // Add to history
+                    addToHistory(inputValue);
+                    
+                    // Hide loading
+                    if (loadingContainer) {
+                        loadingContainer.style.display = 'none';
+                    }
+                    
+                    if (mapContainer) {
+                        mapContainer.style.opacity = '1';
+                    }
+                    
+                    // Visualize on map
+                    if (map) {
+                        await applyVisualization(result, map);
+                    } else {
+                        throw new Error('Map is not initialized');
+                    }
+                } catch (error) {
+                    console.error('Error processing query:', error);
+                    log(`Error processing query: ${error.message}`);
+                    
+                    // Hide loading
+                    if (loadingContainer) {
+                        loadingContainer.style.display = 'none';
+                    }
+                    
+                    if (mapContainer) {
+                        mapContainer.style.opacity = '1';
+                    }
+                    
+                    // Show error
+                    if (messageDisplay) {
+                        messageDisplay.innerHTML = `
+                            <div class="error-message">
+                                <strong>Error:</strong> ${error.message}
+                            </div>
+                        `;
+                    }
+                }
+            }
+            
+            // Add to search history
+            function addToHistory(query) {
+                // Check if already in history
+                const existingIndex = searchHistory.indexOf(query);
+                if (existingIndex !== -1) {
+                    searchHistory.splice(existingIndex, 1);
+                }
+                
+                // Add to beginning
+                searchHistory.unshift(query);
+                
+                // Limit size
+                if (searchHistory.length > MAX_HISTORY_ITEMS) {
+                    searchHistory.pop();
+                }
+                
+                // Update UI
+                updateHistoryUI();
+            }
+            
+            // Update history UI
+            function updateHistoryUI() {
+                const historyContainer = document.getElementById('search-history');
+                if (!historyContainer) return;
+                
+                historyContainer.innerHTML = '';
+                
+                if (searchHistory.length === 0) {
+                    historyContainer.innerHTML = '<p>No recent searches</p>';
+                    return;
+                }
+                
+                searchHistory.forEach((query) => {
+                    const item = document.createElement('div');
+                    item.className = 'history-item';
+                    
+                    const querySpan = document.createElement('span');
+                    querySpan.className = 'history-query';
+                    querySpan.textContent = query;
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'history-delete';
+                    deleteBtn.textContent = '×';
+                    
+                    item.appendChild(querySpan);
+                    item.appendChild(deleteBtn);
+                    
+                    // Add click handler to rerun this query
+                    querySpan.addEventListener('click', () => {
+                        if (searchInput) {
+                            searchInput.value = query;
+                            processQuery();
+                        }
+                    });
+                    
+                    // Add delete handler
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const index = searchHistory.indexOf(query);
+                        if (index !== -1) {
+                            searchHistory.splice(index, 1);
+                            updateHistoryUI();
+                        }
+                    });
+                    
+                    historyContainer.appendChild(item);
+                });
+            }
+            
+            // Clear map data
+            function clearMapData() {
+                if (!map) return;
+                
+                try {
+                    // Clear markers
+                    if (map.getSource('locations')) {
+                        map.getSource('locations').setData({
+                            type: 'FeatureCollection',
+                            features: []
+                        });
+                    }
+                    
+                    // Clear route
+                    if (map.getSource('route')) {
+                        map.getSource('route').setData({
+                            type: 'Feature',
+                            geometry: {
+                                type: 'LineString',
+                                coordinates: []
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error clearing map data:', error);
+                }
+            }
+        });
+    </script>
+</body>
+</html> 

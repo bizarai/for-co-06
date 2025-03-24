@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Map Visualization with NLP (Cloudflare Version)</title>
+    <!-- Mapbox GL JS CSS and JS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- Debug error handling script -->
+    <script>
+        // Global error handler
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Global error:', message, source, lineno, colno, error);
+            const debugInfo = document.getElementById('debug-info');
+            if (debugInfo) {
+                debugInfo.textContent += `\nERROR: ${message}\nAt: ${source}:${lineno}:${colno}\nStack: ${error ? error.stack : 'N/A'}`;
+                debugInfo.scrollTop = debugInfo.scrollHeight;
+            }
+            return false; // Let the error propagate
+        };
+        
+        // Log function
+        function log(message) {
+            console.log(`[${new Date().toISOString()}] ${message}`);
+            const debugInfo = document.getElementById('debug-info');
+            if (debugInfo) {
+                debugInfo.textContent += `\n${message}`;
+                debugInfo.scrollTop = debugInfo.scrollHeight;
+            }
+        }
+
+        // Constants for Cloudflare deployment
+        const MAPBOX_TOKEN = 'pk.eyJ1IjoiZm9yLWNvLTA0IiwiYSI6ImNsd2V6dW1maTBzMW0ycnA3djNkcTRtdmsifQ.3_QQeVgZU-2OKNONomzqQQ';
+    </script>
+</head>
+<body>
+        <header>
+        <h1>Enhanced Map Visualization with NLP</h1>
+        <p class="subtitle">Enter a natural language query to visualize locations and routes on the map.</p>
+        </header>
+
+    <div class="info-box">
+        <strong>Try example queries like:</strong>
+        <div class="examples-container">
+            <span class="example" data-query="Show me Paris, London, and Rome">Show me Paris, London, and Rome</span>
+            <span class="example" data-query="Route from New York to Los Angeles">Route from New York to Los Angeles</span>
+            <span class="example" data-query="Historical sites in ancient Rome">Historical sites in ancient Rome</span>
+            <span class="example" data-query="Hiking trails near Seattle">Hiking trails near Seattle</span>
+        </div>
+    </div>
+    
+    <div class="input-section">
+        <div class="input-wrapper">
+            <input type="text" id="nlp-input" placeholder="Enter your query (e.g., Route from Paris to London)">
+            <button id="process-btn">Process</button>
+        </div>
+        <div class="visualization-options">
+            <div class="option-label">Visualization type:</div>
+            <div class="viz-options">
+                <div class="viz-option selected" data-type="default">Default</div>
+                <div class="viz-option" data-type="satellite">Satellite</div>
+                <div class="viz-option" data-type="terrain">Terrain</div>
+                <div class="viz-option" data-type="historical">Historical</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading-indicator" style="display: none;">
+        <div class="spinner"></div>
+        <div class="loading-text">Processing your query...</div>
+    </div>
+
+    <div id="message-display"></div>
+    
+    <div id="map"></div>
+    
+    <div class="debug-section">
+        <h3>Debug Controls</h3>
+        <div class="debug-controls">
+            <button id="direct-nlp-test">Direct NLP Test</button>
+            <button id="check-modules">Check Module Imports</button>
+            <button id="reinit-map">Reinitialize Map</button>
+            <button id="test-viz">Test Visualization</button>
+        </div>
+        <div id="debug-info">Debug information will appear here</div>
+    </div>
+  
+    <!-- Map verification tools - help debug map issues -->
+    <div id="map-verification">
+        <h3>Map Verification Tools</h3>
+        <div id="map-check-result"></div>
+        <div class="verification-tools">
+            <button id="verify-map">Check Map Status</button>
+            <button id="verify-token">Check Mapbox Token</button>
+            <button id="verify-sources">Check Map Sources</button>
+        </div>
+    </div>
+
+    <!-- Deployment notice -->
+    <div class="deployment-notice">
+        <p>This is the deployed Cloudflare version. The APIs will return mock data.</p>
+    </div>
+
+    <!-- Main application code -->
+    <script type="module">
+        import { applyVisualization } from './visualization-integration.js';
+        import { processNaturalLanguageInput } from './enhanced-nlp-improved.js';
+        
+        // Global variables
+        let map;
+        let mapboxToken = MAPBOX_TOKEN; // Use the constant defined above
+        let selectedVisualizationType = 'default';
+        let isProcessing = false;
+        
+        // Initialize the application when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', async () => {
+            log('Application initializing...');
+            
+            // Set up visualization options
+            initVisualizationOptions();
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Initialize the map
+            try {
+                await initializeMap();
+                log('Map initialized successfully');
+            } catch (error) {
+                log(`Error initializing map: ${error.message}`);
+                displayMapError(`Failed to initialize map: ${error.message}`);
+            }
+            
+            log('Application initialized and ready');
+        });
+        
+        // Initialize the map
+        async function initializeMap() {
+            log('Initializing map...');
+            
+            try {
+                // Get the map container
+                const mapContainer = document.getElementById('map');
+                if (!mapContainer) {
+                    throw new Error('Map container not found');
+                }
+                
+                // Show loading message
+                mapContainer.innerHTML = '<div id="map-loading" class="map-loading">Loading map...</div>';
+                
+                // In deployed version, we use the token directly
+                if (!mapboxToken) {
+                    throw new Error('No Mapbox token available');
+                }
+                
+                log(`Using Mapbox token: ${mapboxToken.substring(0, 8)}...`);
+                
+                // Verify Mapbox GL JS is available
+                if (typeof mapboxgl === 'undefined') {
+                    throw new Error('Mapbox GL JS library not loaded');
+                }
+                
+                // Clear the map container
+                mapContainer.innerHTML = '';
+                
+                // Initialize the map
+                mapboxgl.accessToken = mapboxToken;
+                map = new mapboxgl.Map({
+                    container: 'map',
+                    style: 'mapbox://styles/mapbox/streets-v12',
+                    center: [-122.42136449, 37.80176523], // Center the map on San Francisco
+                    zoom: 8
+                });
+                
+                // Wait for the map to load
+                await new Promise((resolve, reject) => {
+                    map.on('load', () => {
+                        log('Map loaded');
+                        
+                        try {
+                            // Add sources for locations and routes
+                            map.addSource('locations', {
+                                type: 'geojson',
+                                data: {
+                                    type: 'FeatureCollection',
+                                    features: []
+                                }
+                            });
+                            
+                            map.addSource('route', {
+                                type: 'geojson',
+                                data: {
+                                    type: 'Feature',
+                                    geometry: {
+                                        type: 'LineString',
+                                        coordinates: []
+                                    }
+                                }
+                            });
+                        
+                            // Add layers
+                            map.addLayer({
+                                id: 'locations-layer',
+                                type: 'circle',
+                                source: 'locations',
+                                paint: {
+                                    'circle-radius': 8,
+                                    'circle-color': '#3887be',
+                                    'circle-stroke-width': 2,
+                                    'circle-stroke-color': '#ffffff'
+                                }
+                            });
+                            
+                            map.addLayer({
+                                id: 'route-layer',
+                                type: 'line',
+                                source: 'route',
+                                layout: {
+                                    'line-join': 'round',
+                                    'line-cap': 'round'
+                                },
+                                paint: {
+                                    'line-color': '#3887be',
+                                    'line-width': 4,
+                                    'line-opacity': 0.8
+                                }
+                            });
+                            
+                            log('Map sources and layers added');
+                            resolve();
+                        } catch (error) {
+                            log(`Error setting up map layers: ${error.message}`);
+                            reject(error);
+                        }
+                    });
+                    
+                    // Handle map load errors
+                    map.on('error', (e) => {
+                        const errorMsg = e.error ? e.error.message : 'Unknown map error';
+                        log(`Map error: ${errorMsg}`);
+                        reject(new Error(errorMsg));
+                    });
+                    
+                    // Set a timeout in case the map never loads
+                    setTimeout(() => {
+                        if (!map || (typeof map.loaded === 'function' && !map.loaded())) {
+                            reject(new Error('Map load timeout'));
+                        }
+                    }, 20000);
+                });
+                
+                return map;
+            } catch (error) {
+                log(`Map initialization error: ${error.message}`);
+                displayMapError(`Error initializing map: ${error.message}`);
+                throw error;
+            }
+        }
+        
+        // Initialize visualization options
+        function initVisualizationOptions() {
+            const vizOptions = document.querySelectorAll('.viz-option');
+            log(`Found ${vizOptions.length} visualization options`);
+            
+            vizOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    // Remove selected class from all options
+                    vizOptions.forEach(opt => opt.classList.remove('selected'));
+                    
+                    // Add selected class to clicked option
+                    option.classList.add('selected');
+                    
+                    // Update selected visualization type
+                    selectedVisualizationType = option.getAttribute('data-type');
+                    log(`Visualization type changed to: ${selectedVisualizationType}`);
+                    
+                    // Update map style if map is available
+                    if (map) {
+                        updateMapStyle(map, selectedVisualizationType);
+                    }
+                });
+            });
+        }
+        
+        /**
+         * Update the map style based on the selected visualization type
+         * @param {Object} map - The Mapbox map instance
+         * @param {string} type - The visualization type
+         */
+        function updateMapStyle(map, type) {
+            if (!map) {
+                log('Cannot update map style, map is not initialized');
+                return;
+            }
+            
+            try {
+                let styleUrl = 'mapbox://styles/mapbox/streets-v12'; // default
+                
+                switch (type) {
+                    case 'satellite':
+                        styleUrl = 'mapbox://styles/mapbox/satellite-streets-v12';
+                        break;
+                    case 'terrain':
+                        styleUrl = 'mapbox://styles/mapbox/outdoors-v12';
+                        break;
+                    case 'historical':
+                        styleUrl = 'mapbox://styles/mapbox/light-v11';
+                        break;
+                    case 'dark':
+                        styleUrl = 'mapbox://styles/mapbox/dark-v11';
+                        break;
+                    default:
+                        styleUrl = 'mapbox://styles/mapbox/streets-v12';
+                }
+                
+                log(`Updating map style to: ${type} (${styleUrl})`);
+                
+                map.setStyle(styleUrl);
+                
+                // Add event listener to re-add sources and layers once the style is loaded
+                map.once('style.load', () => {
+                    log('Map style loaded, re-adding sources and layers...');
+                    try {
+                        // Re-add sources for locations and routes
+                        if (!map.getSource('locations')) {
+                            map.addSource('locations', {
+                                type: 'geojson',
+                                data: {
+                                    type: 'FeatureCollection',
+                                    features: []
+                                }
+                            });
+                        }
+                        
+                        if (!map.getSource('route')) {
+                            map.addSource('route', {
+                                type: 'geojson',
+                                data: {
+                                    type: 'Feature',
+                                    geometry: {
+                                        type: 'LineString',
+                                        coordinates: []
+                                    }
+                                }
+                            });
+                        }
+                        
+                        // Re-add layers for locations and routes
+                        if (!map.getLayer('locations-layer')) {
+                            map.addLayer({
+                                id: 'locations-layer',
+                                type: 'circle',
+                                source: 'locations',
+                                paint: {
+                                    'circle-radius': 8,
+                                    'circle-color': '#3887be',
+                                    'circle-stroke-width': 2,
+                                    'circle-stroke-color': '#ffffff'
+                                }
+                            });
+                        }
+                        
+                        if (!map.getLayer('route-layer')) {
+                            map.addLayer({
+                                id: 'route-layer',
+                                type: 'line',
+                                source: 'route',
+                                layout: {
+                                    'line-join': 'round',
+                                    'line-cap': 'round'
+                                },
+                                paint: {
+                                    'line-color': '#3887be',
+                                    'line-width': 4,
+                                    'line-opacity': 0.8
+                                }
+                            });
+                        }
+                        
+                        log('Sources and layers re-added successfully');
+                    } catch (error) {
+                        log(`Error re-adding sources and layers: ${error.message}`);
+                        console.error('Error re-adding sources and layers:', error);
+                    }
+                });
+            } catch (error) {
+                log(`Error updating map style: ${error.message}`);
+                console.error('Error updating map style:', error);
+            }
+        }
+        
+        // Set up event listeners
+        function setupEventListeners() {
+            log('Setting up event listeners...');
+            
+            // Process button
+            const processBtn = document.getElementById('process-btn');
+            const nlpInput = document.getElementById('nlp-input');
+            
+            if (!processBtn || !nlpInput) {
+                log('ERROR: Process button or input not found');
+                return;
+            }
+            
+            // Process button click
+            processBtn.addEventListener('click', () => {
+                log('Process button clicked');
+                
+                const inputValue = nlpInput.value.trim();
+                if (!inputValue) {
+                    alert('Please enter a query');
+                    return;
+                }
+                
+                processInputWithVisualization(inputValue, selectedVisualizationType);
+            });
+            
+            // Enter key press
+            nlpInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    processBtn.click();
+                }
+            });
+            
+            // Example queries
+            const examples = document.querySelectorAll('.example');
+            examples.forEach(example => {
+                example.addEventListener('click', () => {
+                    const query = example.getAttribute('data-query');
+                    nlpInput.value = query;
+                    processBtn.click();
+                });
+            });
+            
+            // Debug controls
+            const directNlpTest = document.getElementById('direct-nlp-test');
+            if (directNlpTest) {
+                directNlpTest.addEventListener('click', testNlpDirectly);
+            }
+            
+            const checkModules = document.getElementById('check-modules');
+            if (checkModules) {
+                checkModules.addEventListener('click', checkModuleImports);
+            }
+            
+            const reinitMap = document.getElementById('reinit-map');
+            if (reinitMap) {
+                reinitMap.addEventListener('click', () => {
+                    log('Reinitializing map...');
+                    initializeMap().then(() => {
+                        log('Map reinitialized successfully');
+                    }).catch(error => {
+                        log(`Error reinitializing map: ${error.message}`);
+                    });
+                });
+            }
+            
+            const testViz = document.getElementById('test-viz');
+            if (testViz) {
+                testViz.addEventListener('click', testVisualization);
+            }
+            
+            // Map verification tools
+            const verifyMap = document.getElementById('verify-map');
+            if (verifyMap) {
+                verifyMap.addEventListener('click', checkMapStatus);
+            }
+            
+            const verifyToken = document.getElementById('verify-token');
+            if (verifyToken) {
+                verifyToken.addEventListener('click', checkMapboxToken);
+            }
+            
+            const verifySources = document.getElementById('verify-sources');
+            if (verifySources) {
+                verifySources.addEventListener('click', checkMapSources);
+            }
+            
+            log('Event listeners set up');
+        }
+        
+        // Process input with visualization
+        async function processInputWithVisualization(inputText, visualizationType) {
+            log(`Processing "${inputText}" with visualization type: ${visualizationType}`);
+            
+            if (!inputText) {
+                log('Empty input');
+                return;
+            }
+            
+            if (isProcessing) {
+                log('Already processing a query');
+                return;
+            }
+            
+            isProcessing = true;
+            
+            // Show loading indicator
+            const loadingIndicator = document.getElementById('loading-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.style.display = 'block';
+            }
+            
+            // Clear previous results
+            const messageDisplay = document.getElementById('message-display');
+            if (messageDisplay) {
+                messageDisplay.textContent = '';
+            }
+            
+            try {
+                // Check if map is available
+                if (!map) {
+                    log('Map not initialized, trying to initialize...');
+                    await initializeMap();
+                }
+                
+                if (typeof map.loaded === 'function' && !map.loaded()) {
+                    log('Map not loaded, waiting for load event...');
+                    await new Promise(resolve => {
+                        map.once('load', resolve);
+                        setTimeout(resolve, 5000); // Timeout after 5 seconds
+                    });
+                }
+                
+                // Process the input - on deployed version we use directly without server call
+                log('Processing NLP input directly (deployed version)...');
+                const result = await processNaturalLanguageInput(inputText);
+                log(`NLP result: ${JSON.stringify(result)}`);
+                
+                // Set the visualization type
+                result.visualizationType = visualizationType;
+                
+                // Hide loading indicator
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+                
+                // Display message
+                if (messageDisplay && result.message) {
+                    messageDisplay.textContent = result.message;
+                }
+                
+                // Apply visualization
+                log('Applying visualization...');
+                await applyVisualization(result, map);
+                log('Visualization applied successfully');
+                
+            } catch (error) {
+                log(`Error: ${error.message}`);
+                console.error('Error processing input:', error);
+                
+                // Hide loading indicator
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+                
+                // Display error message
+                if (messageDisplay) {
+                    messageDisplay.textContent = `Error: ${error.message}`;
+                    messageDisplay.style.color = '#d9534f';
+                }
+            } finally {
+                isProcessing = false;
+            }
+        }
+        
+        // Direct NLP test function
+        async function testNlpDirectly() {
+            log('Running direct NLP test...');
+            
+            const debugInfo = document.getElementById('debug-info');
+            debugInfo.textContent += '\n[TEST] Direct NLP test button clicked';
+            
+            const testQuery = "Paris to London.";
+            debugInfo.textContent += `\n[TEST] Testing input: "${testQuery}"`;
+            
+            try {
+                debugInfo.textContent += '\n[TEST] Module imported successfully!';
+                
+                const result = await processNaturalLanguageInput(testQuery);
+                debugInfo.textContent += `\n[TEST] Result: ${JSON.stringify(result)}`;
+                
+                alert('NLP processing completed. Check debug area for results.');
+            } catch (error) {
+                debugInfo.textContent += `\n[TEST] ERROR: ${error.message}`;
+                console.error('Direct test error:', error);
+                alert(`Error: ${error.message}`);
+            }
+        }
+        
+        // Check module imports
+        async function checkModuleImports() {
+            const debugInfo = document.getElementById('debug-info');
+            debugInfo.textContent += '\n[TEST] Checking module imports...';
+            
+            try {
+                // Test importing nlp-utils.js
+                const nlpUtils = await import('./nlp-utils.js');
+                debugInfo.textContent += '\n[TEST] nlp-utils.js imported successfully!';
+                
+                if (typeof nlpUtils.extractLocationsWithRegex === 'function') {
+                    debugInfo.textContent += '\n[TEST] extractLocationsWithRegex function found ✓';
+                } else {
+                    debugInfo.textContent += '\n[TEST] extractLocationsWithRegex function NOT found ✗';
+                }
+                
+                if (typeof nlpUtils.extractSimpleLocations === 'function') {
+                    debugInfo.textContent += '\n[TEST] extractSimpleLocations function found ✓';
+                        } else {
+                    debugInfo.textContent += '\n[TEST] extractSimpleLocations function NOT found ✗';
+                }
+                
+                // Test importing enhanced-nlp-improved.js
+                const enhancedNlp = await import('./enhanced-nlp-improved.js');
+                debugInfo.textContent += '\n[TEST] enhanced-nlp-improved.js imported successfully!';
+                
+                if (typeof enhancedNlp.processNaturalLanguageInput === 'function') {
+                    debugInfo.textContent += '\n[TEST] processNaturalLanguageInput function found ✓';
+                        } else {
+                    debugInfo.textContent += '\n[TEST] processNaturalLanguageInput function NOT found ✗';
+                }
+                
+                // Test importing visualization-integration.js
+                const vizIntegration = await import('./visualization-integration.js');
+                debugInfo.textContent += '\n[TEST] visualization-integration.js imported successfully!';
+                
+                if (typeof vizIntegration.applyVisualization === 'function') {
+                    debugInfo.textContent += '\n[TEST] applyVisualization function found ✓';
+                } else {
+                    debugInfo.textContent += '\n[TEST] applyVisualization function NOT found ✗';
+                }
+                
+            } catch (error) {
+                debugInfo.textContent += `\n[TEST] Import ERROR: ${error.message}`;
+                console.error('Import test error:', error);
+            }
+        }
+        
+        // Test visualization directly
+        async function testVisualization() {
+            log('Testing visualization directly...');
+            
+            if (!map) {
+                log('Map not initialized');
+                alert('Map is not initialized. Please initialize the map first.');
+                return;
+            }
+            
+            try {
+                // Create a test result
+                const result = {
+                    intentType: "route",
+                    locations: [
+                        { name: "Paris", timeContext: "" },
+                        { name: "London", timeContext: "" }
+                    ],
+                    visualizationType: selectedVisualizationType,
+                    travelMode: "driving",
+                    preferences: [],
+                    message: "Test route from Paris to London",
+                    suggestedSequence: ["Paris", "London"]
+                };
+                
+                // Apply visualization
+                log('Applying visualization with test data...');
+                await applyVisualization(result, map);
+                
+                log('Test visualization applied successfully');
+                document.getElementById('message-display').textContent = 'Test visualization applied: Paris to London route';
+                
+            } catch (error) {
+                log(`Test visualization error: ${error.message}`);
+                alert(`Visualization test failed: ${error.message}`);
+            }
+        }
+        
+        // Check map status
+        function checkMapStatus() {
+            const result = document.getElementById('map-check-result');
+            
+            if (!map) {
+                result.innerHTML = '<span style="color: red;">❌ Map is not initialized</span>';
+                return;
+            }
+            
+            try {
+                const isLoaded = typeof map.loaded === 'function' ? map.loaded() : false;
+                result.innerHTML = `
+                    <div>Map Status:</div>
+                    <div>Initialized: <span style="color: green;">✓</span></div>
+                    <div>Loaded: <span style="color: ${isLoaded ? 'green' : 'red'}">${isLoaded ? '✓' : '✗'}</span></div>
+                    <div>Container: <span style="color: ${map.getContainer ? 'green' : 'red'}">${map.getContainer ? '✓' : '✗'}</span></div>
+                `;
+            } catch (error) {
+                result.innerHTML = `<span style="color: red;">❌ Error checking map: ${error.message}</span>`;
+            }
+        }
+        
+        // Check Mapbox token
+        function checkMapboxToken() {
+            const result = document.getElementById('map-check-result');
+            
+            if (!mapboxToken) {
+                result.innerHTML = '<span style="color: red;">❌ Mapbox token not found</span>';
+                return;
+            }
+            
+            result.innerHTML = `
+                <div>Mapbox Token Status:</div>
+                <div>Token: <span style="color: green;">✓</span></div>
+                <div>Token prefix: ${mapboxToken.substring(0, 10)}...</div>
+                <div>Token set: <span style="color: ${mapboxgl.accessToken === mapboxToken ? 'green' : 'red'}">
+                    ${mapboxgl.accessToken === mapboxToken ? '✓' : '✗'}</span></div>
+            `;
+        }
+        
+        // Check map sources
+        function checkMapSources() {
+            const result = document.getElementById('map-check-result');
+            
+            if (!map) {
+                result.innerHTML = '<span style="color: red;">❌ Map is not initialized</span>';
+                return;
+            }
+            
+            try {
+                let locationsSource = false;
+                let routeSource = false;
+                
+                try {
+                    locationsSource = !!map.getSource('locations');
+                } catch (e) {
+                    // Source doesn't exist
+                }
+                
+                try {
+                    routeSource = !!map.getSource('route');
+                } catch (e) {
+                    // Source doesn't exist
+                }
+                
+                result.innerHTML = `
+                    <div>Map Sources Status:</div>
+                    <div>Locations Source: <span style="color: ${locationsSource ? 'green' : 'red'}">${locationsSource ? '✓' : '✗'}</span></div>
+                    <div>Route Source: <span style="color: ${routeSource ? 'green' : 'red'}">${routeSource ? '✓' : '✗'}</span></div>
+                `;
+                
+                // If sources are missing, show a fix button
+                if (!locationsSource || !routeSource) {
+                    result.innerHTML += `
+                        <div style="margin-top: 10px;">
+                            <button onclick="addMapSources()">Fix Missing Sources</button>
+                        </div>
+                    `;
+                    
+                    // Add the function to fix sources
+                    window.addMapSources = function() {
+                        try {
+                            if (!locationsSource) {
+                                map.addSource('locations', {
+                                    type: 'geojson',
+                                    data: {
+                                        type: 'FeatureCollection',
+                                        features: []
+                                    }
+                                });
+                                
+                                map.addLayer({
+                                    id: 'locations-layer',
+                                    type: 'circle',
+                                    source: 'locations',
+                                    paint: {
+                                        'circle-radius': 8,
+                                        'circle-color': '#3887be',
+                                        'circle-stroke-width': 2,
+                                        'circle-stroke-color': '#ffffff'
+                                    }
+                                });
+                            }
+                            
+                            if (!routeSource) {
+                                map.addSource('route', {
+                                    type: 'geojson',
+                                    data: {
+                                        type: 'Feature',
+                                        geometry: {
+                                            type: 'LineString',
+                                            coordinates: []
+                                        }
+                                    }
+                                });
+                                
+                                map.addLayer({
+                                    id: 'route-layer',
+                                    type: 'line',
+                                    source: 'route',
+                                    layout: {
+                                        'line-join': 'round',
+                                        'line-cap': 'round'
+                                    },
+                                    paint: {
+                                        'line-color': '#3887be',
+                                        'line-width': 4,
+                                        'line-opacity': 0.8
+                                    }
+                                });
+                            }
+                            
+                            result.innerHTML = '<span style="color: green;">✓ Sources fixed successfully</span>';
+                            setTimeout(checkMapSources, 1000);
+                        } catch (error) {
+                            result.innerHTML = `<span style="color: red;">❌ Error fixing sources: ${error.message}</span>`;
+                        }
+                    };
+                }
+            } catch (error) {
+                result.innerHTML = `<span style="color: red;">❌ Error checking sources: ${error.message}</span>`;
+            }
+        }
+        
+        // Display map error
+        function displayMapError(message) {
+            const mapContainer = document.getElementById('map');
+            if (mapContainer) {
+                mapContainer.innerHTML = `
+                    <div class="map-error">
+                        <h3>Map Error</h3>
+                        <p>${message}</p>
+                        <button onclick="window.location.reload()">Reload Page</button>
+                    </div>
+                `;
+            }
+        }
+    </script>
+    
+    <!-- Deployment footer -->
+    <footer class="cloudflare-footer">
+        <p>Deployed on Cloudflare Pages ● <a href="https://github.com/cloudflare/pages" target="_blank">GitHub</a></p>
+    </footer>
+    
+    <style>
+        .deployment-notice {
+            background-color: #f8f9fa;
+            border-left: 4px solid #6c757d;
+            padding: 10px 15px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        
+        .cloudflare-footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f1f3f5;
+            color: #495057;
+            font-size: 14px;
+        }
+        
+        .cloudflare-footer a {
+            color: #0051c3;
+            text-decoration: none;
+        }
+        
+        .cloudflare-footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</body>
+</html> 
