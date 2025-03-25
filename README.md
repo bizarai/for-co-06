@@ -56,20 +56,24 @@ The `comparison/` version includes several key optimizations:
 
 ## Environment Configuration
 
-The application requires the following environment variables, which should be set in a `.env` file in the root directory:
+The application requires environment variables for API keys and configuration. A `.env.example` file is provided as a template:
 
-```
-# Mapbox API token (required)
-MAPBOX_TOKEN=your_mapbox_token
+1. Copy the example file to create your own:
+   ```bash
+   cp .env.example .env
+   ```
 
-# Google API key for Gemini API (required)
-GOOGLE_API_KEY=your_google_api_key
-GEMINI_API_KEY=your_google_api_key  # Duplicate for Cloudflare compatibility
+2. Edit the `.env` file with your actual API keys:
+   ```
+   # Required
+   MAPBOX_TOKEN=your_mapbox_token
+   GOOGLE_API_KEY=your_google_api_key
+   GEMINI_API_KEY=your_google_api_key  # Duplicate for Cloudflare compatibility
 
-# Optional settings
-USE_MOCK_DATA=false  # Set to 'true' to use mock data instead of calling Gemini API
-PORT=3000  # Server port
-```
+   # Optional
+   USE_MOCK_DATA=false  # Set to 'true' to use mock data instead of calling Gemini API
+   PORT=3000  # Server port
+   ```
 
 These environment variables are used by both the main application and the comparison version.
 
