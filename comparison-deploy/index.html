@@ -235,6 +235,94 @@
             display: flex;
             justify-content: space-between;
         }
+        
+        /* Clarification Dialog Styles */
+        .clarification-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: none;
+        }
+        
+        .clarification-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 500px;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            border-radius: 12px;
+            z-index: 1001;
+            display: none;
+        }
+        
+        .clarification-content {
+            padding: 20px;
+        }
+        
+        .clarification-content h3 {
+            margin-top: 0;
+            color: #1a73e8;
+        }
+        
+        .clarification-options {
+            margin: 15px 0;
+        }
+        
+        .clarification-option {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .clarification-option:hover {
+            background: #e9f0fe;
+            border-color: #1a73e8;
+        }
+        
+        .clarification-option.selected {
+            background: #e9f0fe;
+            border-color: #1a73e8;
+            font-weight: bold;
+        }
+        
+        .clarification-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 15px;
+        }
+        
+        .clarification-actions button {
+            margin-left: 10px;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .primary-btn {
+            background: #1a73e8;
+            color: white;
+            border: none;
+        }
+        
+        .secondary-btn {
+            background: transparent;
+            color: #1a73e8;
+            border: 1px solid #1a73e8;
+        }
     </style>
     <!-- Debug error handling script -->
     <script>
@@ -302,6 +390,7 @@
                 <div class="viz-option" data-type="satellite">Satellite</div>
                 <div class="viz-option" data-type="terrain">Terrain</div>
                 <div class="viz-option" data-type="historical">Historical</div>
+                <div class="viz-option" data-type="transparent">Transparent</div>
             </div>
             
             <!-- Mobile visualization options (shown only on small screens) -->
@@ -315,6 +404,7 @@
                     <div class="viz-option" data-type="satellite">Satellite</div>
                     <div class="viz-option" data-type="terrain">Terrain</div>
                     <div class="viz-option" data-type="historical">Historical</div>
+                    <div class="viz-option" data-type="transparent">Transparent</div>
                 </div>
             </div>
         </div>
@@ -327,7 +417,12 @@
 
     <div id="message-display" class="result-card" style="display: none;"></div>
     
-    <div id="map"></div>
+    <div id="map">
+        <!-- Transparent mode indicator -->
+        <div id="transparent-mode-indicator" class="transparent-mode-indicator">Transparent Mode Active - Map Background Hidden</div>
+        <!-- Route type indicator -->
+        <div id="route-type-indicator" class="route-type-indicator" style="display: none;">Driving Route</div>
+    </div>
     
     <!-- Share dialog -->
     <div class="share-backdrop"></div>
@@ -340,6 +435,20 @@
             <button id="close-share-btn">Close</button>
         </div>
     </div>
+    
+    <!-- Add this HTML for the clarification dialog right after the share-backdrop div -->
+    <div class="clarification-dialog">
+        <div class="clarification-content">
+            <h3>I Need More Information</h3>
+            <p id="clarification-message"></p>
+            <div id="clarification-options" class="clarification-options"></div>
+            <div class="clarification-actions">
+                <button id="confirm-clarification" class="primary-btn">Confirm</button>
+                <button id="skip-clarification" class="secondary-btn">Skip</button>
+            </div>
+        </div>
+    </div>
+    <div class="clarification-backdrop"></div>
     
     <div class="debug-section collapsible-section">
         <div class="collapsible-header">
@@ -376,7 +485,7 @@
     <!-- Main application code -->
     <script type="module">
         import { applyVisualization } from './visualization-integration.js';
-        import { processNaturalLanguageInput } from './enhanced-nlp-improved.js';
+        import { processNaturalLanguageInput, processNaturalLanguageInputWithContext } from './enhanced-nlp-improved.js';
         
         // Global variables
         let map;
@@ -515,25 +624,25 @@
                         try {
                             // Add basic sources for locations and routes - only if they don't exist
                             if (!map.getSource('locations')) {
-                                map.addSource('locations', {
-                                    type: 'geojson',
-                                    data: {
-                                        type: 'FeatureCollection',
-                                        features: []
-                                    }
-                                });
-                                
-                                map.addLayer({
-                                    id: 'locations-layer',
-                                    type: 'circle',
-                                    source: 'locations',
-                                    paint: {
-                                        'circle-radius': 8,
-                                        'circle-color': '#3887be',
-                                        'circle-stroke-width': 2,
-                                        'circle-stroke-color': '#ffffff'
-                                    }
-                                });
+                            map.addSource('locations', {
+                                type: 'geojson',
+                                data: {
+                                    type: 'FeatureCollection',
+                                    features: []
+                                }
+                            });
+                            
+                            map.addLayer({
+                                id: 'locations-layer',
+                                type: 'circle',
+                                source: 'locations',
+                                paint: {
+                                    'circle-radius': 8,
+                                    'circle-color': '#3887be',
+                                    'circle-stroke-width': 2,
+                                    'circle-stroke-color': '#ffffff'
+                                }
+                            });
                             }
                             
                             if (!map.getSource('route')) {
@@ -545,23 +654,23 @@
                                             type: 'LineString',
                                             coordinates: []
                                         }
-                                    }
-                                });
-                                
-                                map.addLayer({
-                                    id: 'route-layer',
-                                    type: 'line',
-                                    source: 'route',
-                                    layout: {
-                                        'line-join': 'round',
-                                        'line-cap': 'round'
-                                    },
-                                    paint: {
-                                        'line-color': '#3887be',
-                                        'line-width': 4,
-                                        'line-opacity': 0.8
-                                    }
-                                });
+                                }
+                            });
+                            
+                            map.addLayer({
+                                id: 'route-layer',
+                            type: 'line',
+                            source: 'route',
+                            layout: {
+                                'line-join': 'round',
+                                'line-cap': 'round'
+                            },
+                            paint: {
+                                    'line-color': '#3887be',
+                                    'line-width': 4,
+                                    'line-opacity': 0.8
+                                }
+                            });
                             }
                             
                             log('Map sources and layers set up');
@@ -642,11 +751,45 @@
                 return;
             }
             
+            // Import the visualization module dynamically
+            import('./visualization-integration.js')
+                .then(module => {
+                    // Use the updateMapStyle function from the visualization module
+                    if (typeof module.updateMapStyle === 'function') {
+                        module.updateMapStyle(type, map);
+                        log(`Map style updated to ${type} using visualization module`);
+                    } else {
+                        log('Visualization module found but updateMapStyle function not available');
+                        fallbackUpdateMapStyle(map, type);
+                    }
+                })
+                .catch(error => {
+                    log(`Error importing visualization module: ${error.message}`);
+                    fallbackUpdateMapStyle(map, type);
+                });
+        }
+        
+        /**
+         * Fallback function to update map style if the module can't be loaded
+         * @param {Object} map - The Mapbox map instance
+         * @param {string} type - The visualization type
+         */
+        function fallbackUpdateMapStyle(map, type) {
             try {
                 // Get current style
                 const currentStyle = map.getStyle();
                 let styleUrl = 'mapbox://styles/mapbox/streets-v12'; // default
                 
+                // Clear transparent mode first
+                document.body.classList.remove('transparent-mode-active');
+                
+                // Special handling for transparent mode
+                if (type === 'transparent') {
+                    document.body.classList.add('transparent-mode-active');
+                    // Use a minimal style
+                    styleUrl = 'mapbox://styles/mapbox/light-v11';
+                } else {
+                    // Regular style handling
                 switch (type) {
                     case 'satellite':
                         styleUrl = 'mapbox://styles/mapbox/satellite-streets-v12';
@@ -657,11 +800,9 @@
                     case 'historical':
                         styleUrl = 'mapbox://styles/mapbox/light-v11';
                         break;
-                    case 'dark':
-                        styleUrl = 'mapbox://styles/mapbox/dark-v11';
-                        break;
                     default:
                         styleUrl = 'mapbox://styles/mapbox/streets-v12';
+                    }
                 }
                 
                 // Quick check if the style URL is the same - avoid unnecessary style changes
@@ -962,39 +1103,42 @@
                         });
                         
                         // Process NLP while style is loading to save time
-                        // Process the input
-                        log('Calling NLP processing function...');
+                // Process the input
+                log('Calling NLP processing function...');
                         const nlpStartTime = performance.now();
-                        const result = await processNaturalLanguageInput(inputText);
+                const result = await processNaturalLanguageInputWithContext(inputText);
                         log(`NLP processing took ${(performance.now() - nlpStartTime).toFixed(2)}ms`);
                         
                         // Now wait for style update to complete
                         await styleUpdatePromise;
                         log(`Style update completed in ${(performance.now() - nlpStartTime).toFixed(2)}ms`);
-                        
-                        // Set the visualization type
-                        result.visualizationType = visualizationType;
-                        
-                        // Hide loading indicator
-                        if (loadingIndicator) {
-                            loadingIndicator.style.display = 'none';
-                        }
-                        
-                        // Display message
-                        if (messageDisplay && result.message) {
-                            messageDisplay.textContent = result.message;
-                            messageDisplay.style.display = 'block';
-                            messageDisplay.className = 'result-card fade-in';
-                        }
-                        
-                        // Apply visualization
-                        log('Applying visualization...');
+                
+                // Add clarification handling here
+                const finalResult = await handleClarificationIfNeeded(result);
+                
+                // Set the visualization type
+                finalResult.visualizationType = visualizationType;
+                
+                // Hide loading indicator
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+                
+                // Display message
+                if (messageDisplay && finalResult.message) {
+                    messageDisplay.textContent = finalResult.message;
+                    messageDisplay.style.display = 'block';
+                    messageDisplay.className = 'result-card fade-in';
+                }
+                
+                // Apply visualization
+                log('Applying visualization...');
                         const vizStartTime = performance.now();
-                        await applyVisualization(result, map);
+                await applyVisualization(finalResult, map);
                         log(`Visualization applied in ${(performance.now() - vizStartTime).toFixed(2)}ms`);
-                        
-                        // Add to history
-                        addToHistory(inputText, result);
+                
+                // Add to history
+                addToHistory(inputText, finalResult);
                     } else {
                         log('Map not fully loaded, skipping style update');
                         styleChanged = false;
@@ -1024,11 +1168,14 @@
                     // Process the input
                     log('Calling NLP processing function...');
                     const nlpStartTime = performance.now();
-                    const result = await processNaturalLanguageInput(inputText);
+                    const result = await processNaturalLanguageInputWithContext(inputText);
                     log(`NLP processing took ${(performance.now() - nlpStartTime).toFixed(2)}ms`);
                     
+                    // Add clarification handling here
+                    const finalResult = await handleClarificationIfNeeded(result);
+                    
                     // Set the visualization type
-                    result.visualizationType = visualizationType || selectedVisualizationType;
+                    finalResult.visualizationType = visualizationType || selectedVisualizationType;
                     
                     // Hide loading indicator
                     if (loadingIndicator) {
@@ -1036,8 +1183,8 @@
                     }
                     
                     // Display message
-                    if (messageDisplay && result.message) {
-                        messageDisplay.textContent = result.message;
+                    if (messageDisplay && finalResult.message) {
+                        messageDisplay.textContent = finalResult.message;
                         messageDisplay.style.display = 'block';
                         messageDisplay.className = 'result-card fade-in';
                     }
@@ -1045,11 +1192,11 @@
                     // Apply visualization
                     log('Applying visualization...');
                     const vizStartTime = performance.now();
-                    await applyVisualization(result, map);
+                    await applyVisualization(finalResult, map);
                     log(`Visualization applied in ${(performance.now() - vizStartTime).toFixed(2)}ms`);
                     
                     // Add to history
-                    addToHistory(inputText, result);
+                    addToHistory(inputText, finalResult);
                 }
                 
                 const totalTime = performance.now() - startTime;
@@ -1089,7 +1236,7 @@
             try {
                 debugInfo.textContent += '\n[TEST] Module imported successfully!';
                 
-                const result = await processNaturalLanguageInput(testQuery);
+                const result = await processNaturalLanguageInputWithContext(testQuery);
                 debugInfo.textContent += `\n[TEST] Result: ${JSON.stringify(result)}`;
                 
                 alert('NLP processing completed. Check debug area for results.');
@@ -1349,11 +1496,11 @@
             // Update error message
             errorElement.innerHTML = `
                 <div class="error-content">
-                    <h3>Map Error</h3>
-                    <p>${message}</p>
+                        <h3>Map Error</h3>
+                        <p>${message}</p>
                     <button class="reload-btn" onclick="window.location.reload()">Reload Page</button>
-                </div>
-            `;
+                    </div>
+                `;
             
             // Show the error
             errorElement.style.display = 'flex';
@@ -1768,19 +1915,140 @@
                 // Set the input value
                 document.getElementById('nlp-input').value = query;
                 
-                // Set visualization type if specified
+                // Process visualization type differently depending on if it's transparent mode
+                const isTransparentMode = vizType === 'transparent';
+                
                 if (vizType) {
                     log(`Setting visualization type to: ${vizType}`);
                     
-                    // Find and click the viz option with this type
+                    // Update the selected type directly
+                    selectedVisualizationType = vizType;
+                    
+                    // Update UI to match the selected type
                     const vizOptions = document.querySelectorAll('.viz-option');
                     vizOptions.forEach(opt => {
-                        if (opt.getAttribute('data-type') === vizType) {
-                            // Simulate a click
-                            opt.click();
+                        // Update selection state
+                        const isSelected = opt.getAttribute('data-type') === vizType;
+                        opt.classList.toggle('selected', isSelected);
+                        
+                        // If this is the mobile dropdown, update the label
+                        if (isSelected && opt.closest('.viz-options-mobile-dropdown')) {
+                            document.getElementById('selected-viz-label').textContent = opt.textContent;
                         }
                     });
+                    
+                    // For transparent mode, add the class to body
+                    if (isTransparentMode) {
+                        document.body.classList.add('transparent-mode-active');
+                    } else {
+                        document.body.classList.remove('transparent-mode-active');
+                    }
                 }
+                
+                // Special handling for map initialization when using transparent mode
+                if (isTransparentMode) {
+                    log('Using special handling for transparent mode from URL...');
+                    
+                    // Make sure map is initialized first
+                    if (!map) {
+                        try {
+                            log('Initializing map for transparent mode...');
+                            await initializeMap();
+                            log('Map initialized for transparent mode');
+                            
+                            // Apply transparent style before processing the query
+                            await new Promise((resolve) => {
+                                // Import the visualization module and apply transparent style
+                                import('./visualization-integration.js')
+                                    .then(module => {
+                                        if (typeof module.updateMapStyle === 'function') {
+                                            log('Applying transparent mode via module...');
+                                            module.updateMapStyle('transparent', map);
+                                            
+                                            // Wait for style to load
+                                            map.once('style.load', () => {
+                                                log('Transparent style loaded from URL parameter');
+                                                resolve();
+                                            });
+                                            
+                                            // Safety timeout
+                                            setTimeout(resolve, 3000);
+                                        } else {
+                                            // Use fallback
+                                            log('Using fallback for transparent mode...');
+                                            fallbackUpdateMapStyle(map, 'transparent');
+                                            
+                                            // Wait for style to load
+                                            map.once('style.load', () => {
+                                                log('Transparent style loaded via fallback');
+                                                resolve();
+                                            });
+                                            
+                                            // Safety timeout
+                                            setTimeout(resolve, 3000);
+                                        }
+                                    })
+                                    .catch(error => {
+                                        log(`Error importing module: ${error.message}`);
+                                        fallbackUpdateMapStyle(map, 'transparent');
+                                        
+                                        // Wait for style to load
+                                        map.once('style.load', () => {
+                                            log('Transparent style loaded via fallback after import error');
+                                            resolve();
+                                        });
+                                        
+                                        // Safety timeout
+                                        setTimeout(resolve, 3000);
+                                    });
+                            });
+                            
+                            log('Transparent mode applied from URL parameter');
+                            
+                            // Process the query now that transparent mode is set up
+                            log('Processing query with transparent mode already set');
+                            processInputWithVisualization(query, 'transparent');
+                            return; // Exit early - we've already processed the query
+                        } catch (error) {
+                            log(`Error initializing map for transparent mode: ${error.message}`);
+                        }
+                    } else {
+                        // Map already exists, just update the style
+                        log('Map already exists, updating style for transparent mode...');
+                        
+                        await new Promise((resolve) => {
+                            import('./visualization-integration.js')
+                                .then(module => {
+                                    if (typeof module.updateMapStyle === 'function') {
+                                        module.updateMapStyle('transparent', map);
+                                    } else {
+                                        fallbackUpdateMapStyle(map, 'transparent');
+                                    }
+                                    
+                                    // Wait for style to load
+                                    map.once('style.load', () => {
+                                        log('Transparent style updated for existing map');
+                                        resolve();
+                                    });
+                                    
+                                    // Safety timeout
+                                    setTimeout(resolve, 3000);
+                                })
+                                .catch(error => {
+                                    log(`Error importing module: ${error.message}`);
+                                    fallbackUpdateMapStyle(map, 'transparent');
+                                    setTimeout(resolve, 3000);
+                                });
+                        });
+                        
+                        // Process the query with transparent mode already set
+                        log('Processing query with transparent mode already set for existing map');
+                        processInputWithVisualization(query, 'transparent');
+                        return; // Exit early - we've already processed the query
+                    }
+                }
+                
+                // For non-transparent modes or if special handling failed, continue with normal flow
                 
                 // Wait for the map to be fully initialized before processing the query
                 if (!map || (typeof map.loaded === 'function' && !map.loaded())) {
@@ -1797,12 +2065,14 @@
                                 }
                             };
                             checkMap();
-                            // Safety timeout
-                            setTimeout(() => reject(new Error('Map initialization timeout')), 10000);
+                            // Timeout after 10 seconds
+                            setTimeout(() => reject(new Error('Map initialization timed out')), 10000);
                         });
                     } catch (error) {
                         log(`Error waiting for map: ${error.message}`);
-                        return;
+                        
+                        // Continue anyway - we'll try to use the map
+                        log('Continuing despite map initialization issues');
                     }
                 }
                 
@@ -1859,6 +2129,125 @@
             }
             
             log(`Screen size checked: ${isMobile ? 'Mobile' : 'Desktop'} view`);
+        }
+        
+        // Add this to the existing JavaScript
+        function handleClarificationIfNeeded(result) {
+            if (result.needsClarification && result.clarification) {
+                log('Query needs clarification, showing dialog...');
+                
+                const clarificationDialog = document.querySelector('.clarification-dialog');
+                const clarificationBackdrop = document.querySelector('.clarification-backdrop');
+                const messageElement = document.getElementById('clarification-message');
+                const optionsElement = document.getElementById('clarification-options');
+                
+                // Set the clarification message
+                messageElement.textContent = result.clarification.message;
+                
+                // Clear previous options
+                optionsElement.innerHTML = '';
+                
+                // Handle different types of clarifications
+                if (result.clarification.type === 'ambiguousLocations') {
+                    // Add alternative location options
+                    result.clarification.alternatives.forEach(alternative => {
+                        const option = document.createElement('button');
+                        option.className = 'clarification-option';
+                        option.textContent = alternative;
+                        option.setAttribute('data-value', alternative);
+                        optionsElement.appendChild(option);
+                    });
+                } else if (result.clarification.type === 'ambiguousIntent') {
+                    // Add intent options
+                    result.clarification.options.forEach(option => {
+                        const optionElement = document.createElement('button');
+                        optionElement.className = 'clarification-option';
+                        optionElement.textContent = option;
+                        optionElement.setAttribute('data-value', option);
+                        optionsElement.appendChild(optionElement);
+                    });
+                }
+                
+                // Add click handler for options
+                document.querySelectorAll('.clarification-option').forEach(option => {
+                    option.addEventListener('click', function() {
+                        // Remove selected class from all options
+                        document.querySelectorAll('.clarification-option').forEach(opt => {
+                            opt.classList.remove('selected');
+                        });
+                        // Add selected class to clicked option
+                        this.classList.add('selected');
+                    });
+                });
+                
+                // Show the dialog
+                clarificationDialog.style.display = 'block';
+                clarificationBackdrop.style.display = 'block';
+                
+                // Set up confirm button
+                const confirmButton = document.getElementById('confirm-clarification');
+                const skipButton = document.getElementById('skip-clarification');
+                
+                // Use a Promise to wait for user response
+                return new Promise((resolve) => {
+                    // Handler for confirm button
+                    confirmButton.onclick = function() {
+                        const selectedOption = document.querySelector('.clarification-option.selected');
+                        let updatedResult = { ...result };
+                        
+                        if (selectedOption) {
+                            const selectedValue = selectedOption.getAttribute('data-value');
+                            
+                            if (result.clarification.type === 'ambiguousLocations') {
+                                // Replace the ambiguous location with the selected alternative
+                                const ambiguousName = result.clarification.ambiguousLocations[0];
+                                updatedResult.locations = result.locations.map(loc => {
+                                    if (loc.name === ambiguousName) {
+                                        return { ...loc, name: selectedValue };
+                                    }
+                                    return loc;
+                                });
+                            } else if (result.clarification.type === 'ambiguousIntent') {
+                                // Update the intent type based on selection
+                                if (selectedValue === 'Show as route') {
+                                    updatedResult.intentType = 'route';
+                                    updatedResult.message = `Showing route between ${result.locations.map(loc => loc.name).join(' and ')}`;
+                                } else {
+                                    updatedResult.intentType = 'locations';
+                                    updatedResult.message = `Showing separate locations: ${result.locations.map(loc => loc.name).join(', ')}`;
+                                }
+                            }
+                        }
+                        
+                        // Hide the dialog
+                        clarificationDialog.style.display = 'none';
+                        clarificationBackdrop.style.display = 'none';
+                        
+                        // Resolve the promise with the updated result
+                        resolve(updatedResult);
+                    };
+                    
+                    // Handler for skip button
+                    skipButton.onclick = function() {
+                        // Hide the dialog
+                        clarificationDialog.style.display = 'none';
+                        clarificationBackdrop.style.display = 'none';
+                        
+                        // Resolve with the original result
+                        resolve(result);
+                    };
+                    
+                    // Click on backdrop also closes
+                    clarificationBackdrop.onclick = function() {
+                        clarificationDialog.style.display = 'none';
+                        clarificationBackdrop.style.display = 'none';
+                        resolve(result);
+                    };
+                });
+            }
+            
+            // No clarification needed, return the result as-is
+            return Promise.resolve(result);
         }
     </script>
 </body>
