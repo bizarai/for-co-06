@@ -2,14 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Current] - 2024-03-24
+## [Current] - 2025-03-24
 
 ### Code Organization
 - Streamlined directory structure by removing redundant "versions" directory
 - Created clear separation between main and comparison implementations
 - Improved documentation with detailed feature comparison
 
-## [1.1.0] - 2024-03-24
+## [1.1.0] - 2025-03-24
 
 ### Optimizations
 - Implemented parallel processing of NLP queries and map style updates
