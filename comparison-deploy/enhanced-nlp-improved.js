@@ -733,7 +733,7 @@ export async function processNaturalLanguageInput(inputText) {
         
         // Make API call to Gemini with timeout control
         console.log('Calling Gemini API for NLP processing...');
-        const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
+        const API_URL = window.location.hostname.includes('localhost') ? '' : 'https://for-co-04.pages.dev';
         
         // Set up timeout mechanism with AbortController
         const controller = new AbortController();
@@ -1019,30 +1019,30 @@ function detectInformationalQuery(text) {
 
 /**
  * Check if the server is using mock data for Gemini API
- * This helps avoid unnecessary API calls when we know they'll timeout
- * @returns {Promise<boolean>} - True if server is using mock data
+ * @returns {Promise<boolean>}
  */
 async function isUsingMockData() {
-  try {
-    // Check server configuration
-    const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
-    const response = await fetch(`${API_URL}/api/debug`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      return data.useMockData === true || data.geminiApiAvailable === false;
+    try {
+        // Check if we're in a static deployment environment (Cloudflare Pages)
+        if (window.location.hostname.includes('pages.dev') || 
+            window.location.hostname.includes('cloudflare') ||
+            !window.location.hostname.includes('localhost')) {
+            console.log('Detected static deployment environment, treating as mock data mode');
+            return true;
+        }
+        
+        const response = await fetch('/api/config');
+        if (!response.ok) {
+            console.warn('Failed to fetch config, assuming mock data mode');
+            return true;
+        }
+        
+        const data = await response.json();
+        return data.useMockData === true || data.geminiApiAvailable === false;
+    } catch (error) {
+        console.warn('Error checking mock data status:', error);
+        return true; // Default to mock data if there's an error
     }
-  } catch (error) {
-    console.log('Error checking mock data status:', error);
-  }
-  
-  // Default to false if we can't determine
-  return false;
 }
 
 /**

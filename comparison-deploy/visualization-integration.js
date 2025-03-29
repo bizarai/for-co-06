@@ -568,99 +568,92 @@ async function visualizeRoute(result, map) {
 }
 
 /**
- * Get route coordinates between points
- * @param {Array} coordinates - Array of coordinate pairs
- * @param {string} profile - The routing profile to use
- * @returns {Promise<Array>} - Array of route coordinates
+ * Get route coordinates from Mapbox Directions API
+ * @param {Array} coordinates - Array of coordinates
+ * @param {string} profileName - The routing profile to use
+ * @returns {Promise<Array>} - Array of coordinates forming the route
  */
-async function getRoute(coordinates, profile = 'driving') {
-  const routeStartTime = performance.now();
-  visualLog(`Getting route for ${coordinates.length} points with profile: ${profile}`);
+async function getRoute(coordinates, profileName = 'driving') {
+  const startTime = performance.now();
+  let profile = 'mapbox/driving';
   
-  if (!coordinates || coordinates.length < 2) {
-    throw new Error('Need at least 2 coordinates for a route');
+  // Map profile name to Mapbox profile
+  if (profileName === 'walking') {
+    profile = 'mapbox/walking';
+  } else if (profileName === 'cycling') {
+    profile = 'mapbox/cycling';
+  } else if (profileName === 'driving') {
+    profile = 'mapbox/driving';
   }
   
-  // Check if this might be an intercontinental route
-  const isLikelyIntercontinental = checkIfIntercontinental(coordinates);
+  // Format coordinates for the API
+  const coordString = coordinates.map(coord => coord.join(',')).join(';');
+  visualLog(`Getting ${profile} route for: ${coordString}`);
   
-  // Convert profile to Mapbox format
-  const mapboxProfile = profile === 'driving' ? 'mapbox/driving' :
-                      profile === 'walking' ? 'mapbox/walking' :
-                      profile === 'cycling' ? 'mapbox/cycling' : 'mapbox/driving';
-  
-  // Format coordinates for Mapbox Directions API
-  const coordinatesString = coordinates
-    .map(coord => coord.join(','))
-    .join(';');
-  
-  // Build the API URL using a clean URL structure
-    const API_URL = window.location.hostname === 'localhost' ? '' : window.location.origin;
-  
-  // Always try to get a driving route first, regardless of distance
+  // Check if we're in a static deployment environment and use Mapbox API directly
+  const isStaticDeployment = window.location.hostname.includes('pages.dev') || 
+                            window.location.hostname.includes('cloudflare') ||
+                            !window.location.hostname.includes('localhost');
+
   try {
-    // Use the directions API for all routes
-    const url = `${API_URL}/api/directions?coordinates=${coordinatesString}&profile=${mapboxProfile}`;
-    visualLog(`Fetching route from API: ${url.substring(0, 100)}...`);
+    let url;
+    if (isStaticDeployment) {
+      // Use Mapbox API directly with the token in static deployment
+      url = `https://api.mapbox.com/directions/v5/${profile}/${coordString}?geometries=geojson&access_token=${mapboxgl.accessToken}`;
+      visualLog('Using direct Mapbox API for static deployment');
+    } else {
+      // Use our server-side API in local development
+      url = `/api/directions?coordinates=${coordString}&profile=${profile}`;
+    }
     
-    // Set a timeout for the fetch to avoid hanging
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // Increased timeout to 15 seconds for long routes
-    
-    const fetchStartTime = performance.now();
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    visualLog(`API response received in ${(performance.now() - fetchStartTime).toFixed(1)}ms`);
+    const response = await fetch(url);
     
     if (!response.ok) {
-      // Try to get more detailed error info
-      let errorDetail = '';
-      try {
-        const errorData = await response.json();
-        errorDetail = errorData.message || errorData.error || '';
-      } catch (e) {
-        // Ignore JSON parsing errors
-      }
-      
-      throw new Error(`API returned ${response.status}: ${errorDetail || response.statusText}`);
+      throw new Error(`Directions API error: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json();
-    const parseTime = performance.now();
-    visualLog(`JSON parsed in ${(parseTime - fetchStartTime).toFixed(1)}ms`);
     
     if (!data.routes || data.routes.length === 0) {
-      throw new Error('No route found between these locations');
+      throw new Error('No route found');
     }
     
-    // Extract the route coordinates
-    const routeCoordinates = data.routes[0].geometry.coordinates;
-    visualLog(`Route found with ${routeCoordinates.length} points`);
-    visualLog(`Total route processing time: ${(performance.now() - routeStartTime).toFixed(1)}ms`);
+    const route = data.routes[0];
+    const routeCoordinates = route.geometry.coordinates;
+    
+    visualLog(`Got route with ${routeCoordinates.length} points in ${(performance.now() - startTime).toFixed(1)}ms`);
     
     return routeCoordinates;
   } catch (error) {
-    visualLog(`Error getting driving route: ${error.message}`);
+    visualLog(`Error getting route: ${error.message}`);
     
-    // Only fall back to alternative route types if truly intercontinental
-    if (isLikelyIntercontinental) {
-      visualLog('Route is intercontinental, using air or sea route instead');
-      const isAirRoute = determineTravelType(coordinates);
+    // If the request failed, try an alternative method based on error type
+    if (error.message.includes('422') || 
+        error.message.includes('No route found') || 
+        error.message.includes('coordinates exceeded')) {
+      visualLog('Could not create a viable route, checking if intercontinental...');
       
-      if (isAirRoute) {
-        visualLog('Creating air route with curved path');
-        return createAirRoute(coordinates);
-      } else {
-        visualLog('Creating sea route with geodesic line');
-    return createGeodesicLine(coordinates);
+      // Check if this is likely an intercontinental route
+      const isIntercontinental = checkIfIntercontinental(coordinates);
+      
+      if (isIntercontinental) {
+        // For intercontinental routes, determine if air or sea is more appropriate
+        const isAirRoute = determineTravelType(coordinates);
+        
+        if (isAirRoute) {
+          visualLog('Creating air route for intercontinental travel');
+          return createAirRoute(coordinates);
+        } else {
+          visualLog('Creating sea route for intercontinental travel');
+          return createGeodesicLine(coordinates);
+        }
       }
-    } else {
-      // For domestic routes, especially within North America, we should try harder to get a driving route
-      // If we still can't, rethrow the error to show the user why it failed
-      visualLog('Route is domestic but API request failed. Cannot create driving route.');
-      throw error;
     }
+    
+    // For other errors or non-intercontinental routes that still fail,
+    // fall back to a simple straight line
+    visualLog('Falling back to straight line route');
+    return coordinates;
   }
 }
 

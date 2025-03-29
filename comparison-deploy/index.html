@@ -539,23 +539,16 @@
                 // Show loading message
                 mapContainer.innerHTML = '<div id="map-loading" class="map-loading">Loading map...</div>';
                 
-                // Fetch Mapbox token
-                log('Fetching Mapbox token...');
-                const tokenStartTime = performance.now();
-                const response = await fetch('/api/mapbox-token');
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to get token: ${response.status} ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                mapboxToken = data.token;
+                // MODIFIED: Hardcode the Mapbox token instead of fetching from API
+                // This is needed for the static Cloudflare Pages deployment
+                log('Using hardcoded Mapbox token...');
+                mapboxToken = 'pk.eyJ1IjoidHVmZmNyZWF0ZSIsImEiOiJjbHU5YXJxeXQwN2J6MmpsMDRvMGJ0dGhsIn0.neijgnnqzQ0aCHzOPrE_MQ';
                 
                 if (!mapboxToken) {
-                    throw new Error('No token received from server');
+                    throw new Error('No token available');
                 }
                 
-                log(`Token received in ${(performance.now() - tokenStartTime).toFixed(2)}ms: ${mapboxToken.substring(0, 8)}...`);
+                log(`Token ready: ${mapboxToken.substring(0, 8)}...`);
                 
                 // Verify Mapbox GL JS is available
                 if (typeof mapboxgl === 'undefined') {
